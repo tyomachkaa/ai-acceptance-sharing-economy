@@ -1,0 +1,111 @@
+---
+title: "Reddit Data Collection: Initial vs. Revised Scrape"
+subtitle: "Methodology note for the AI-in-Sharing-Economy project"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  pdf_document:
+    toc: false
+    number_sections: true
+    latex_engine: xelatex
+geometry: margin=2.3cm
+fontsize: 11pt
+header-includes:
+  - \usepackage{float}
+  - \floatplacement{figure}{H}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
+                      fig.align = "center", fig.width = 7, fig.height = 3.4,
+                      out.width = "95%", fig.pos = "H")
+library(ggplot2); library(dplyr); library(tidyr)
+theme_set(theme_minimal(base_size = 10))
+```
+
+```{r data}
+v1 <- read.csv("reddit_all.csv", stringsAsFactors = FALSE)
+v2 <- read.csv("data/reddit_targeted_balanced.csv", stringsAsFactors = FALSE)
+v1$subreddit <- sub("^https://www\\.reddit\\.com/r/([^/]+)/.*$", "\\1", v1$url)
+
+kw <- c(AI = "\\bAI\\b", rental = "rental", rent = "\\brent", host = "\\bhost",
+        `P2P brand` = "airbnb|turo|getaround|fatllama|outdoorsy",
+        equipment = "drone|camera|lens|gear", trust = "\\btrust",
+        `privacy/data` = "privacy|data")
+cov <- function(d) sapply(kw, function(k)
+  round(100 * sum(grepl(k, d$comment, ignore.case = TRUE)) / nrow(d), 1))
+cmp <- data.frame(Term = names(kw), Initial = cov(v1), Revised = cov(v2))
+rownames(cmp) <- NULL
+```
+
+# Why we changed the scrape
+
+Our **initial** collection searched *all of Reddit* with a single keyword query
+(`"AI rental platform helpful automation trust"`). Reddit treats this as an
+any-word relevance match, so it returned whatever threads happened to contain
+*any* of those words. Inspecting the result showed the corpus was dominated by
+unrelated viral threads (relationship drama, K-pop, gaming, US politics) — less
+than 1% of comments actually mentioned *rental*.
+
+The **revised (v2)** collection instead searches *inside* topic-relevant
+subreddits (sharing economy, peer-to-peer rentals, camera/drone gear, event
+tech, AI tooling) and caps comments per thread so no single viral thread
+dominates. This produces a smaller but genuinely on-topic corpus.
+
+# Size and structure
+
+```{r sizetab, results='asis'}
+tab <- data.frame(
+  Version    = c("Initial (keyword, all-Reddit)", "Revised v2 (subreddit-targeted)"),
+  Comments   = c(nrow(v1), nrow(v2)),
+  Threads    = c(length(unique(v1$url)), length(unique(v2$url))),
+  Subreddits = c(length(unique(v1$subreddit)), length(unique(v2$subreddit)))
+)
+knitr::kable(tab, caption = "The initial scrape is 29x larger but topically scattered; v2 is small and focused.")
+```
+
+# What dominated each corpus
+
+```{r subfig, fig.height=3.0, fig.cap="Top subreddits. Initial scrape (grey) is relationship drama, K-pop and gaming; revised scrape (green) is the sharing-economy and AI communities the project actually needs."}
+top_v1 <- v1 |> count(subreddit, sort = TRUE) |> slice_head(n = 8) |> mutate(v = "Initial")
+top_v2 <- v2 |> count(subreddit, sort = TRUE) |> slice_head(n = 8) |> mutate(v = "Revised v2")
+bind_rows(top_v1, top_v2) |>
+  mutate(subreddit = tidytext::reorder_within(subreddit, n, v)) |>
+  ggplot(aes(subreddit, n, fill = v)) +
+  geom_col(show.legend = FALSE) + coord_flip() +
+  tidytext::scale_x_reordered() +
+  facet_wrap(~ v, scales = "free") +
+  scale_fill_manual(values = c("Initial" = "#9e9e9e", "Revised v2" = "#1b9e77")) +
+  labs(x = NULL, y = "comments")
+```
+
+# On-topic keyword coverage
+
+```{r kwfig, fig.height=3.2, fig.cap="Share of comments containing each on-topic term. The revised scrape multiplies relevance on every dimension that matters for the brief (rental 11x, host 14x, peer-to-peer brands 9x)."}
+cmp |>
+  pivot_longer(c(Initial, Revised), names_to = "Version", values_to = "pct") |>
+  ggplot(aes(reorder(Term, pct), pct, fill = Version)) +
+  geom_col(position = "dodge") + coord_flip() +
+  scale_fill_manual(values = c("Initial" = "#9e9e9e", "Revised" = "#1b9e77")) +
+  labs(x = NULL, y = "% of comments containing term")
+```
+
+```{r kwtab, results='asis'}
+knitr::kable(cmp, row.names = FALSE,
+             caption = "On-topic keyword coverage (% of comments).")
+```
+
+# Takeaways for the project
+
+- **Relevance, not volume, was the problem.** The initial 14,090-comment corpus
+  looked impressive but was mostly noise; the revised 483-comment corpus is
+  ~6x denser in sharing-economy language (3.7% to 23.6% of comments mention
+  sharing-economy terms).
+- **The fix was methodological:** subreddit-scoped search + per-thread comment
+  caps to stop viral threads dominating.
+- **One honest caveat:** explicit use of the word *"trust"* actually *dropped*
+  (1.4% to ~0%) in v2. Trust shows up *implicitly* through host/renter, payment
+  and review language rather than the literal word — so we measure it through
+  topics and sentiment, not keyword counts.
+- **Decision:** we proceed with the **revised v2 corpus** for all downstream
+  analysis (word frequencies, networks, LDA, sentiment), and keep the initial
+  scrape only as a documented baseline of what *not* to do.

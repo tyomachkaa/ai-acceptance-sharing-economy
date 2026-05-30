@@ -1,0 +1,32 @@
+# ---- R session cruft ----
+.RData
+.Rhistory
+.Rapp.history
+.Rproj.user/
+*.Rproj
+
+# ---- knit byproducts ----
+*_files/
+*_cache/
+*.aux
+*.log
+*.tex
+*.knit.md
+*.synctex.gz
+
+# ---- macOS ----
+.DS_Store
+
+# ---- secrets ----
+.env
+.Renviron
+*.key
+*token*
+
+# ---- scrape checkpoints (large, regenerable) ----
+data/_*.rds
+
+# ---- optional: uncomment to NOT commit raw scraped data ----
+# data/trustpilot_raw/
+# data/reddit_*.csv
+# data/trustpilot_reviews.csv

@@ -1,0 +1,185 @@
+---
+title: "AI Acceptance in the Sharing Economy"
+subtitle: "Project progress for coaching session"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  pdf_document:
+    toc: false
+    number_sections: true
+    latex_engine: xelatex
+geometry: margin=2.3cm
+fontsize: 11pt
+header-includes:
+  - \usepackage{float}
+  - \floatplacement{figure}{H}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
+                      fig.align = "center", fig.width = 7, fig.height = 3.6,
+                      out.width = "92%", fig.pos = "H")
+library(dplyr); library(tidyr); library(stringr); library(ggplot2)
+library(tidytext); library(lubridate); library(scales)
+library(wordcloud); library(RColorBrewer)
+theme_set(theme_minimal(base_size = 10))
+```
+
+```{r load}
+rd <- read.csv("data/reddit_targeted_balanced.csv", stringsAsFactors = FALSE) |>
+  transmute(source = "Reddit",
+            text   = comment,
+            group  = theme,                       # sharing_economy / ai_creative_tech
+            date   = as.Date(date))
+
+tp <- read.csv("data/trustpilot_reviews.csv", stringsAsFactors = FALSE) |>
+  mutate(platform = str_remove(platform, "\\.com$")) |>
+  transmute(source = "Trustpilot",
+            text   = body,
+            group  = platform,
+            rating = suppressWarnings(as.integer(rating)),
+            date   = as.Date(date_posted))
+
+data("stop_words")
+extra_stop <- tibble(word = c("dont","didnt","im","ive","car","cars","turo",
+                              "https","amp","just","like","get","got"))
+```
+
+# Research question
+
+> **How do users perceive AI agents on peer-to-peer rental platforms, and what
+> drives trust — across platform types and across community discussion
+> (Reddit) vs. paying-customer experience (Trustpilot)?**
+
+The sharing economy increasingly embeds AI agents that automate matching,
+messaging, pricing and damage assessment. We study how users *react* to that
+automation and which design factors earn (or lose) their trust.
+
+# Data we collected ourselves
+
+```{r corpus-table, results='asis'}
+ov <- bind_rows(
+  rd |> summarise(Source = "Reddit (balanced)",
+                  Documents = n(),
+                  Groups = n_distinct(group),
+                  From = min(date, na.rm = TRUE), To = max(date, na.rm = TRUE)),
+  tp |> summarise(Source = "Trustpilot reviews",
+                  Documents = n(),
+                  Groups = n_distinct(group),
+                  From = min(date, na.rm = TRUE), To = max(date, na.rm = TRUE))
+)
+knitr::kable(ov, caption = "Two self-scraped sources. Trustpilot star ratings give a ground-truth sentiment label; Reddit is labelled by community theme.")
+```
+
+Reddit was scraped with `RedditExtractoR` targeting sharing-economy and AI
+subreddits; Trustpilot with an Apify actor across seven rental platforms.
+Each captures a different lens on the same question.
+
+# What users talk about (word frequency)
+
+```{r wordfreq, fig.height=3.8, fig.cap="Top terms differ sharply by source: Reddit centres on the host--renter relationship and disputes; Trustpilot on transactional service quality."}
+tidy_words <- function(df, lab) {
+  df |> unnest_tokens(word, text) |>
+    anti_join(stop_words, by = "word") |>
+    anti_join(extra_stop, by = "word") |>
+    filter(str_detect(word, "^[a-z]+$"), nchar(word) > 2) |>
+    count(word, sort = TRUE) |> slice_head(n = 12) |>
+    mutate(src = lab)
+}
+wf <- bind_rows(
+  tidy_words(filter(rd, group == "sharing_economy"), "Reddit (sharing economy)"),
+  tidy_words(tp, "Trustpilot (reviews)")
+)
+ggplot(wf, aes(reorder_within(word, n, src), n, fill = src)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() + scale_x_reordered() +
+  facet_wrap(~ src, scales = "free") +
+  scale_fill_manual(values = c("Reddit (sharing economy)" = "#1b9e77",
+                               "Trustpilot (reviews)" = "#7570b3")) +
+  labs(x = NULL, y = "count")
+```
+
+# Trust varies by platform type (Trustpilot ratings)
+
+```{r ratings, fig.height=3.2, fig.cap="Mean star rating by platform (n shown). Peer-to-peer mobility (Turo, RVshare, Outdoorsy, Fat Llama) is trusted; specialist equipment rental scores far lower -- though those samples are small."}
+plat <- tp |> filter(!is.na(rating)) |>
+  group_by(group) |>
+  summarise(mean_rating = mean(rating), n = n(), .groups = "drop") |>
+  mutate(label = paste0(group, " (n=", n, ")"))
+
+ggplot(plat, aes(reorder(label, mean_rating), mean_rating, fill = mean_rating)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = round(mean_rating, 2)), hjust = -0.15, size = 3) +
+  coord_flip(ylim = c(0, 5.3)) +
+  scale_fill_gradient(low = "#d7191c", high = "#1a9641") +
+  labs(x = NULL, y = "mean star rating (1-5)")
+```
+
+```{r ratingdist, fig.height=2.8, fig.cap="Rating mix per platform (platforms with >= 50 reviews). The positive skew is typical of Trustpilot; we will downsample for balanced classification."}
+tp |> filter(!is.na(rating)) |>
+  add_count(group) |> filter(n >= 50) |>
+  count(group, rating) |>
+  ggplot(aes(group, n, fill = factor(rating))) +
+  geom_col(position = "fill") +
+  scale_fill_brewer(palette = "RdYlGn", name = "stars") +
+  scale_y_continuous(labels = percent_format()) +
+  coord_flip() + labs(x = NULL, y = NULL)
+```
+
+# Sentiment over time
+
+```{r timeline, fig.height=3, fig.cap="Monthly mean Trustpilot rating, 2019-2026 (months with >= 15 reviews). Satisfaction is broadly stable with a mild dip in the post-2022 travel surge; this is the timeline we will extend with lexicon sentiment on the Reddit text."}
+tp |> filter(!is.na(rating), !is.na(date)) |>
+  mutate(month = floor_date(date, "month")) |>
+  group_by(month) |>
+  summarise(mean_rating = mean(rating), n = n(), .groups = "drop") |>
+  filter(n >= 15) |>
+  ggplot(aes(month, mean_rating)) +
+  geom_line(colour = "grey70") +
+  geom_smooth(method = "loess", span = 0.4, se = FALSE, colour = "#1a9641") +
+  geom_hline(yintercept = mean(tp$rating, na.rm = TRUE), linetype = "dotted") +
+  labs(x = NULL, y = "mean star rating")
+```
+
+# Distinctive vocabulary (comparison cloud)
+
+```{r cloud, fig.height=4, fig.cap="Comparison cloud: words coloured by the source where they are relatively more frequent. Reddit (green) skews to disputes and decisions; Trustpilot (purple) to service and ease."}
+mat <- bind_rows(
+  rd |> filter(group == "sharing_economy") |> mutate(src = "Reddit"),
+  tp |> mutate(src = "Trustpilot")
+) |>
+  unnest_tokens(word, text) |>
+  anti_join(stop_words, by = "word") |>
+  anti_join(extra_stop, by = "word") |>
+  filter(str_detect(word, "^[a-z]+$"), nchar(word) > 3) |>
+  count(src, word) |>
+  pivot_wider(names_from = src, values_from = n, values_fill = 0) |>
+  as.data.frame()
+rownames(mat) <- mat$word; mat$word <- NULL
+set.seed(1)
+comparison.cloud(as.matrix(mat), max.words = 90, scale = c(2.6, 0.5),
+                 colors = c("#1b9e77", "#7570b3"), title.size = 1.1)
+```
+
+# Where we are & next steps
+
+**Done:** two on-topic corpora scraped and cleaned (Reddit `r nrow(rd)` comments,
+Trustpilot `r nrow(tp)` reviews across `r n_distinct(tp$group)` platforms);
+exploratory word frequency, ratings, timeline and comparison cloud above.
+
+**Next (planned):**
+
+- Preprocessing: lemmatise, 1-gram + bi-gram tokens.
+- **Topic modelling (LDA)** 3--5 topics per class, seeded with trust / price /
+  service / AI terms; compare with `text2vec`.
+- **Sentiment**: AFINN/NRC on Reddit + validate against Trustpilot stars;
+  8-emotion (NRC) profile per source.
+- **Embeddings** (GloVe) for semantic neighbours of *trust*, *AI*, *host*.
+- **Synthesis**: map topics to trust frameworks (Mayer 1995; TAM) and produce
+  actionable **AI-agent design recommendations**.
+
+**One decision for the professor:** keep our *cross-source / cross-platform
+comparison* framing, or pivot to a stricter *positive-vs-negative
+classification*? This shapes the LDA and labelling setup.
+
+**Known limitations:** Trustpilot skews positive; equipment-rental platforms
+under-sampled; "trust" appears mostly implicitly; English-only.
