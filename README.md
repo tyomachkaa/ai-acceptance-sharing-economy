@@ -11,11 +11,11 @@ We collect two complementary text sources, compare them, and turn the findings i
 
 | | What we did | Outcome |
 |---|---|---|
-| **Sources** | Reddit (discussion) + Trustpilot (paying-customer reviews) | 2 self-scraped corpora |
-| **Reddit** | Topic-targeted scrape across 30+ subreddits | ~480 on-topic comments (after balancing) |
+| **Sources** | Reddit (discussion baseline) + Trustpilot (verification via star ratings) | 2 self-scraped corpora |
+| **Reddit** | Topic-targeted scrape → cleaned + themed | **314 on-topic comments** across 17 subreddits, balanced 47/53 between `sharing_economy` and `ai_tech` |
 | **Trustpilot** | 7 sharing-economy platforms via Apify | 3,912 reviews with 1-5★ ground-truth labels |
 | **Headline finding** | Trust varies sharply by *rental type* | Car/RV sharing 3.7-4.6★ vs equipment rental 1-3★ |
-| **Methodology note** | Initial keyword scrape was off-topic; we caught it, rebuilt with subreddit-scoped search | 6× more relevant corpus |
+| **Methodology note** | v1 keyword scrape was off-topic; v2 subreddit-scoped; v2-cleaned drops viral-thread noise | progressively more relevant corpus |
 
 Read the full progress report: [outputs/coaching_overview.pdf](outputs/coaching_overview.pdf).
 Methodology fix in detail: [outputs/reddit_scrape_comparison.pdf](outputs/reddit_scrape_comparison.pdf).
@@ -34,6 +34,7 @@ Methodology fix in detail: [outputs/reddit_scrape_comparison.pdf](outputs/reddit
 ├── 02_merge_trustpilot.R                <- run 2nd: combine Apify Trustpilot CSVs
 ├── 03_preliminary_analysis.R            <- quick exploratory pass + figures
 ├── 04_compare_versions.R                <- v1-vs-v2 Reddit methodology comparison
+├── 05_clean_reddit.R                    <- drop off-topic subs + tag theme  → reddit_clean.csv
 │
 ├── coaching_overview.Rmd                <- main progress report
 ├── reddit_scrape_comparison.Rmd         <- 3-page methodology note
@@ -43,8 +44,9 @@ Methodology fix in detail: [outputs/reddit_scrape_comparison.pdf](outputs/reddit
 │   ├── reddit_positive.csv              <- initial "positive class" subset
 │   ├── reddit_negative.csv              <- initial "negative class" subset
 │   ├── reddit_targeted.csv              <- v2 raw (subreddit-targeted)
-│   ├── reddit_targeted_balanced.csv     <- v2 capped per thread (USE THIS)
-│   ├── trustpilot_reviews.csv           <- merged Trustpilot reviews
+│   ├── reddit_targeted_balanced.csv     <- v2 capped per thread (kept for comparison)
+│   ├── reddit_clean.csv                 <- v2 cleaned + themed (USE THIS — 314 rows)
+│   ├── trustpilot_reviews.csv           <- merged Trustpilot reviews (3,912 rows)
 │   └── trustpilot_raw/                  <- per-platform Apify CSVs (inputs)
 │
 ├── outputs/                             <- knitted PDFs
@@ -56,7 +58,9 @@ Methodology fix in detail: [outputs/reddit_scrape_comparison.pdf](outputs/reddit
 └── legacy/                              <- old / failed attempts kept for transparency
     ├── scraping_data_v1.R               <- the original off-topic keyword scrape
     ├── scrape_trustpilot_api_attempt.R  <- failed Apify API (free-tier capped)
-    └── scrape_trustpilot_saswave_attempt.R
+    ├── scrape_trustpilot_saswave_attempt.R
+    ├── scrape_reddit_oauth_attempt.R    <- OAuth deep-scrape (Reddit form blocked)
+    └── setup_reddit_oauth_test.R
 ```
 
 ---
@@ -71,12 +75,15 @@ The sharing economy increasingly embeds AI for matching, messaging, pricing and 
 
 ## Data sources
 
-### Reddit (community discussion)
+### Reddit (community discussion — the baseline)
 
 - Tool: [`RedditExtractoR`](https://cran.r-project.org/package=RedditExtractoR) (R, public Reddit API)
-- Strategy: **subreddit-scoped keyword search** across 30+ communities (r/Turo, r/AirBnB, r/photography, r/drones, r/Filmmakers, r/Entrepreneur, r/privacy, …)
-- Output: `data/reddit_targeted_balanced.csv` — the main file used downstream
-- See `01_scrape_reddit.R`
+- Strategy: **subreddit-scoped keyword search** across 30+ communities (r/Turo, r/AirBnB, r/photography, r/drones, r/privacy, r/ChatGPT, …)
+- Post-processing: `05_clean_reddit.R` drops 2 off-topic subreddits (r/Filmmakers, r/Entrepreneur — they held the 3 viral threads that made up ~67% of the raw scrape) and tags each remaining comment with a `theme` column (`sharing_economy` | `ai_tech`).
+- **Output file to use:** `data/reddit_clean.csv` (314 rows, 17 subreddits, 47/53 theme balance)
+- See `01_scrape_reddit.R` (collection) and `05_clean_reddit.R` (cleaning)
+
+> **Reddit anti-bot wall (2026):** Reddit now hard-blocks anonymous JSON endpoints from most non-residential IPs (HTTP 403 + bot-wall HTML on every request). The v2 scrape worked when those rules were laxer. A later attempt to re-scrape via OAuth is preserved in `legacy/scrape_reddit_oauth_attempt.R` — it works in principle but requires a Reddit `script` app, which we did not register.
 
 ### Trustpilot (paying-customer reviews)
 
@@ -87,9 +94,11 @@ The sharing economy increasingly embeds AI for matching, messaging, pricing and 
 
 ### Why two sources
 
-Reddit captures *deliberation* — host/renter disputes, complaints, debates.
-Trustpilot captures *post-transaction satisfaction* — service quality, ease of use.
-Together they triangulate the same research question from two angles. The two sources also let us *validate* lexicon sentiment on Reddit against Trustpilot stars (convergent validity).
+Per the professor's framing: **Reddit = baseline discussion corpus, Trustpilot = verification layer.**
+
+- Reddit captures *deliberation* — host/renter disputes, complaints, AI debates.
+- Trustpilot captures *post-transaction satisfaction* with **1–5★ ground-truth labels** — no lexicon needed.
+- We use Trustpilot stars to *validate* the AFINN/NRC sentiment we compute on Reddit (convergent validity check). Trustpilot is the heavier corpus and the more analytically valuable one; Reddit is the discussion layer that answers "what do users *talk about* around AI and rentals."
 
 ---
 
@@ -110,11 +119,13 @@ install.packages(c(
 
 ```r
 setwd("/path/to/Final Project")
-source("01_scrape_reddit.R")
+source("01_scrape_reddit.R")     # raw scrape  → data/reddit_targeted.csv + _balanced.csv
+source("05_clean_reddit.R")      # clean+theme → data/reddit_clean.csv  (USE THIS)
 ```
 
-Wall-clock: ~30-45 min (Reddit comment fetch is rate-limited).
-Writes: `data/reddit_targeted.csv` (raw) + `data/reddit_targeted_balanced.csv` (capped).
+Wall-clock: ~30-45 min for `01_scrape_reddit.R`, ~5 sec for `05_clean_reddit.R`.
+
+> ⚠️ As of mid-2026 Reddit hard-blocks anonymous JSON requests from most IPs. A fresh run of `01_scrape_reddit.R` may return HTTP 403 — in that case use the OAuth path documented in `legacy/scrape_reddit_oauth_attempt.R` (requires registering a `script` app at `reddit.com/prefs/apps`).
 
 ### 3. Re-merge Trustpilot (optional — data is checked in)
 
@@ -146,13 +157,15 @@ source("04_compare_versions.R")        # v1 vs v2 Reddit comparison
 
 ---
 
-## Methodology note: why we re-scraped Reddit
+## Methodology note: three passes on Reddit
 
-The initial collection (`legacy/scraping_data_v1.R`) used a single global keyword search across all of Reddit. Result: a 14,090-comment corpus dominated by K-pop drama, gaming, and U.S. politics — less than 1% of comments mentioned *rental*.
+| Pass | Script | File | Size | Why we moved on |
+|---|---|---|---|---|
+| v1 — keyword global | `legacy/scraping_data_v1.R` | `data/reddit_all.csv` | 14,090 | Single global keyword search → dominated by K-pop, gaming, US politics. <1% mentioned *rental*. |
+| v2 — subreddit-targeted | `01_scrape_reddit.R` | `data/reddit_targeted.csv` | 1,009 | Searches inside topic-relevant subs. On-topic but ~67% of corpus was 3 viral threads in r/Filmmakers + r/Entrepreneur about AI-anxiety in creative careers. |
+| **v2-cleaned** | **`05_clean_reddit.R`** | **`data/reddit_clean.csv`** | **314** | Drops the 2 noisy subs entirely, tags each comment with a `theme` (`sharing_economy` \| `ai_tech`). 47/53 balanced. **This is the file the analysis uses.** |
 
-The revised scrape (`01_scrape_reddit.R`) searches **inside topic-relevant subreddits** with focused keywords, and caps comments per thread so no single viral thread dominates. Result: a smaller (~480) but ~6× more relevant corpus.
-
-Full comparison with figures: [outputs/reddit_scrape_comparison.pdf](outputs/reddit_scrape_comparison.pdf).
+The v1-vs-v2 comparison (with figures) lives at: [outputs/reddit_scrape_comparison.pdf](outputs/reddit_scrape_comparison.pdf).
 
 ---
 
@@ -179,10 +192,12 @@ Full comparison with figures: [outputs/reddit_scrape_comparison.pdf](outputs/red
 ## Limitations
 
 - Trustpilot reviews skew positive (typical of opt-in review platforms) — we downsample for balanced classification.
-- Equipment-rental platforms (KitSplit, Lensrentals) are under-sampled (low Trustpilot presence).
+- Equipment-rental platforms (KitSplit n=5, Lensrentals n=35) are under-sampled (low Trustpilot presence).
 - "Trust" appears mostly *implicitly* in the corpora (through host/renter, payment and review language) rather than as the literal word — we measure it via topics and sentiment, not keyword counts.
 - English-only.
-- Reddit comments are kept as-is from on-topic threads — some off-topic chatter within those threads is expected.
+- **One dominant Reddit thread** ("Ultimate Guide: 86 ChatGPT Plugins") accounts for 26% of `reddit_clean.csv` — AI-side LDA will lean toward "AI tools/plugins" framing. Noted explicitly in the report.
+- **Reddit thread count is small** (38 unique threads in `reddit_clean.csv`) — realistic LDA ceiling is 3–4 topics per theme.
+- Reddit anti-bot wall (2026) prevents fresh anonymous scrapes; reproducing requires OAuth setup (see `legacy/scrape_reddit_oauth_attempt.R`).
 
 ---
 
