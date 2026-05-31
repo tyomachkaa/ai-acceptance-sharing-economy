@@ -20,6 +20,7 @@ This is the short internal status note. The full overview for outsiders lives in
 
 | File | Rows | Notes |
 |---|---|---|
+| `data/reddit_all.csv` | 14,090 | v1 initial keyword scrape — off-topic, kept as baseline for transparency |
 | `data/reddit_targeted.csv` | 1,009 | v2 raw subreddit-targeted scrape (source for cleaning) |
 | **`data/reddit_clean.csv`** | **314** | **v2 cleaned + themed — USE THIS** |
 | `data/trustpilot_reviews.csv` | 3,912 | 7 platforms: Turo (1482), Fat Llama (835), RVshare (773), Outdoorsy (751), Lensrentals (35), Getaround (31), KitSplit (5) |

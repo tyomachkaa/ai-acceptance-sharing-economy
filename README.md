@@ -38,6 +38,7 @@ Methodology fix in detail: [outputs/reddit_scrape_comparison.pdf](outputs/reddit
 ├── coaching_overview.Rmd                <- main progress report
 │
 ├── data/
+│   ├── reddit_all.csv                   <- v1 initial keyword scrape (14,090 rows, off-topic — kept as baseline)
 │   ├── reddit_targeted.csv              <- v2 raw (1,009 rows, source for cleaning)
 │   ├── reddit_clean.csv                 <- v2 cleaned + themed (USE THIS — 314 rows)
 │   ├── trustpilot_reviews.csv           <- merged Trustpilot reviews (3,912 rows)
@@ -154,7 +155,7 @@ source("03_preliminary_analysis.R")    # base-R figures into figures/
 
 | Pass | Script | Output | Size | Why we moved on |
 |---|---|---|---|---|
-| v1 — keyword global | `legacy/scraping_data_v1.R` | (discarded) | 14,090 | Single global keyword search → dominated by K-pop, gaming, US politics. <1% mentioned *rental*. Raw CSV no longer kept in repo (re-runnable from the legacy script). |
+| v1 — keyword global | `legacy/scraping_data_v1.R` | `data/reddit_all.csv` | 14,090 | Single global keyword search → dominated by K-pop, gaming, US politics. <1% mentioned *rental*. Kept as a baseline for transparency / re-analysis. |
 | v2 — subreddit-targeted | `01_scrape_reddit.R` | `data/reddit_targeted.csv` | 1,009 | Searches inside topic-relevant subs. On-topic but ~67% of corpus was 3 viral threads in r/Filmmakers + r/Entrepreneur about AI-anxiety in creative careers. |
 | **v2-cleaned** | **`05_clean_reddit.R`** | **`data/reddit_clean.csv`** | **314** | Drops the 2 noisy subs entirely, tags each comment with a `theme` (`sharing_economy` \| `ai_tech`). 47/53 balanced. **This is the file the analysis uses.** |
 
