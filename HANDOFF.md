@@ -18,17 +18,29 @@ This is the short internal status note. The full overview for outsiders lives in
 
 ## What we have right now (numbers from today)
 
+> **Project focus (current):** *AI acceptance / experience across service platforms* — how people react to AI and automation, compared across **AI-native services**, **peer-to-peer rentals**, and **customer-service** contexts. Reddit = discussion baseline, Trustpilot = star-labelled verification.
+
+### Reddit (discussion baseline)
+
 | File | Rows | Notes |
 |---|---|---|
-| `data/reddit_all.csv` | 14,090 | v1 initial keyword scrape — off-topic, kept as baseline for transparency |
-| `data/reddit_targeted.csv` | 1,009 | v2 raw subreddit-targeted scrape (source for cleaning) |
-| **`data/reddit_clean.csv`** | **314** | **v2 cleaned + themed — USE THIS** |
-| `data/trustpilot_reviews.csv` | 3,912 | 7 platforms: Turo (1482), Fat Llama (835), RVshare (773), Outdoorsy (751), Lensrentals (35), Getaround (31), KitSplit (5) |
-| `data/trustpilot_raw/` | 7 files | Per-platform Apify downloads, before merge |
+| **`data/reddit_baseline.csv`** | **4,250** | **USE THIS.** On-topic AI-experience corpus pulled from the Arctic Shift archive. `platform_category` = `ai_service` (2008) \| `rental` (1715) \| `customer_service` (527). 2023–2026. |
+| `data/reddit_all.csv` | 14,090 | v1 keyword scrape — off-topic, kept for transparency only |
+| `data/reddit_targeted.csv` | 1,009 | v2 subreddit-targeted (superseded) |
+| `data/reddit_clean.csv` | 314 | v2 cleaned (superseded by reddit_baseline.csv) |
 
-**Time spans:** Reddit 2012–2026, Trustpilot 2019–2026.
-**Trustpilot labels:** 1–5 star ratings = ground-truth sentiment (no lexicon needed).
-**Reddit `reddit_clean.csv`:** has a `theme` column = `sharing_economy` (168) | `ai_tech` (146).
+### Trustpilot (verification)
+
+| File | Rows | Notes |
+|---|---|---|
+| `data/trustpilot_reviews.csv` | 3,912 | 7 rental platforms: Turo (1482), Fat Llama (835), RVshare (773), Outdoorsy (751), Lensrentals (35), Getaround (31), KitSplit (5) |
+| `data/trustpilot_flagged.csv` | 3,912 | same + `platform_category` + `ai_related` flag (via `06_ai_acceptance.R`) |
+| **`data/ai_experience.csv`** | **60** | AI/automation reviews only — **avg 2.32★ vs 4.21★ overall** (automation correlates with frustration) |
+| `data/trustpilot_raw/` | 7 files | per-platform Apify downloads, before merge |
+
+**To extend Trustpilot:** scrape AI-native platforms (character.ai, replika.com, openai.com, perplexity.ai) into `data/trustpilot_raw/`, re-run `02_merge_trustpilot.R` then `06_ai_acceptance.R` — they auto-tag as `ai_service`.
+
+**Why Reddit changed:** Reddit's 2026 anti-bot wall blocks every anonymous `.json` endpoint (403) — RedditExtractoR and the `.json`-based Apify actors both fail. We pull from the **Arctic Shift research archive** instead (`01_fetch_reddit_arcticshift.py`), which serves archived Reddit over a clean API. No token, no proxy, no cost.
 
 ---
 
