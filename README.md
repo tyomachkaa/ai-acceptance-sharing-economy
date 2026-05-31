@@ -32,31 +32,19 @@ Read the working report: [outputs/report.pdf](outputs/report.pdf).
 ├── 01_fetch_reddit_arcticshift.py       <- run 1st: Reddit baseline from Arctic Shift archive
 ├── 01b_fetch_reddit_supplement.py       <- recovers rate-limited pulls, appends to baseline
 ├── 02_merge_trustpilot.R                <- combine Apify Trustpilot CSVs → trustpilot_reviews.csv
-├── 03_preliminary_analysis.R            <- quick exploratory pass + figures
 ├── 06_ai_acceptance.R                   <- flag AI/automation reviews + tag platform_category
 │
 ├── report.Rmd                           <- working report (auto-reads the CSVs)
-├── coaching_overview.Rmd                <- earlier progress report
 │
 ├── data/
 │   ├── reddit_baseline.csv              <- USE THIS — 4,250 on-topic comments, 3 categories
 │   ├── trustpilot_reviews.csv           <- merged Trustpilot reviews (3,912 rows)
 │   ├── trustpilot_flagged.csv           <- + platform_category + ai_related flag
 │   ├── ai_experience.csv                <- the 60 AI/automation reviews (2.32★)
-│   ├── trustpilot_raw/                  <- per-platform Apify CSVs (inputs)
-│   ├── reddit_all.csv                   <- v1 keyword scrape (off-topic, transparency only)
-│   ├── reddit_targeted.csv              <- v2 (superseded)
-│   └── reddit_clean.csv                 <- v2 cleaned (superseded by reddit_baseline.csv)
+│   └── trustpilot_raw/                  <- per-platform Apify CSVs (inputs)
 │
-├── outputs/                             <- knitted PDFs (report.pdf, coaching_overview.pdf, …)
-├── figures/                             <- generated PNGs
-│
-└── legacy/                              <- old / failed attempts kept for transparency
-    ├── scraping_data_v1.R               <- original off-topic keyword scrape
-    ├── scrape_reddit_oauth_attempt.R    <- OAuth deep-scrape (Reddit form blocked)
-    ├── setup_reddit_oauth_test.R
-    ├── scrape_trustpilot_api_attempt.R  <- failed Apify API (free-tier capped)
-    └── scrape_trustpilot_saswave_attempt.R
+└── outputs/
+    └── report.pdf                       <- knitted working report
 ```
 
 ---
@@ -78,7 +66,7 @@ Online services increasingly put AI between the user and the thing they came for
 - **Output file to use:** `data/reddit_baseline.csv` (4,250 comments — `ai_service` 2008 / `rental` 1715 / `customer_service` 527, 2023–2026).
 - `01b_fetch_reddit_supplement.py` recovers any pulls that hit the archive's rate limit, with backoff.
 
-> Earlier sharing-economy-targeted scrapes (`data/reddit_targeted.csv`, `reddit_clean.csv`) are kept for transparency but **superseded** — they were <2% on-topic for AI experiences; the Arctic Shift baseline is ~80%+.
+> Earlier sharing-economy-targeted Reddit scrapes were <2% on-topic for AI experiences and have been removed; the Arctic Shift baseline is ~80%+ on-topic.
 
 ### Trustpilot (paying-customer reviews — the verification)
 
@@ -135,23 +123,17 @@ source("06_ai_acceptance.R")      # → data/trustpilot_flagged.csv + data/ai_ex
 rmarkdown::render("report.Rmd")   # → report.pdf (copy into outputs/)
 ```
 
-### 5. (Optional) quick exploratory figures
-
-```r
-source("03_preliminary_analysis.R")    # base-R figures into figures/
-```
-
 ---
 
 ## Methodology note: how the Reddit corpus evolved
 
-| Pass | Method | Output | Size | Verdict |
-|---|---|---|---|---|
-| v1 — keyword global | `legacy/scraping_data_v1.R` | `reddit_all.csv` | 14,090 | Off-topic (K-pop, gaming, politics). Transparency only. |
-| v2 — subreddit-targeted | `legacy/…` + `05_clean_reddit.R` | `reddit_clean.csv` | 314 | On-topic for *rentals* but <2% about AI experiences. Superseded. |
-| **v3 — Arctic Shift archive** | **`01_fetch_reddit_arcticshift.py`** | **`reddit_baseline.csv`** | **4,250** | **~80%+ on-topic for AI experiences, 3 service contexts. The file the analysis uses.** Live Reddit scraping is blocked in 2026; the archive sidesteps it. |
+| Pass | Method | Size | Verdict |
+|---|---|---|---|
+| v1 — keyword global | global Reddit keyword search | 14,090 | Off-topic (K-pop, gaming, politics). |
+| v2 — subreddit-targeted | sharing-economy subreddit search + cleaning | 314 | On-topic for *rentals* but <2% about AI experiences. |
+| **v3 — Arctic Shift archive** | **`01_fetch_reddit_arcticshift.py`** → `reddit_baseline.csv` | **4,250** | **~80%+ on-topic for AI experiences, 3 service contexts. The file the analysis uses.** Live Reddit scraping is blocked in 2026; the archive sidesteps it. |
 
-The v1-vs-v2 comparison figures: [outputs/reddit_scrape_comparison.pdf](outputs/reddit_scrape_comparison.pdf).
+(v1 and v2 produced corpora that were removed in cleanup; only the Arctic Shift baseline is kept.)
 
 ---
 
