@@ -35,6 +35,7 @@ Methodology fix in detail: [outputs/reddit_scrape_comparison.pdf](outputs/reddit
 ├── 03_preliminary_analysis.R            <- quick exploratory pass + figures
 ├── 05_clean_reddit.R                    <- drop off-topic subs + tag theme  → reddit_clean.csv
 │
+├── report.Rmd                           <- data-collection & methodology working report (auto-reads the CSVs)
 ├── coaching_overview.Rmd                <- main progress report
 │
 ├── data/
@@ -45,6 +46,7 @@ Methodology fix in detail: [outputs/reddit_scrape_comparison.pdf](outputs/reddit
 │   └── trustpilot_raw/                  <- per-platform Apify CSVs (inputs)
 │
 ├── outputs/                             <- knitted PDFs
+│   ├── report.pdf                       <- data & methodology working report
 │   ├── coaching_overview.pdf
 │   └── reddit_scrape_comparison.pdf     <- methodology one-pager (v1 vs v2)
 │
@@ -179,7 +181,11 @@ The v1-vs-v2 comparison figures: [outputs/reddit_scrape_comparison.pdf](outputs/
 
 ## Authors
 
-- **Artem Cherkaskyy** & team — WU Vienna, *Online Content Analysis* course, 2026
+- **Htet Phone Khaing**
+- **Tatum Miranda Smith**
+- **Artem Cherkaskyy**
+
+WU Vienna — *Online Content Analysis* course, 2026.
 
 ---
 

@@ -13,6 +13,8 @@
 *.tex
 *.knit.md
 *.synctex.gz
+# root-level knitted PDFs (curated copies live in outputs/)
+/*.pdf
 
 # ---- macOS ----
 .DS_Store

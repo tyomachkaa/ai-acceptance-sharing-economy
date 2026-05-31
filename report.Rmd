@@ -1,0 +1,430 @@
+---
+title: "AI Acceptance in the Sharing Economy"
+subtitle: "Data Collection and Methodology --- Working Report"
+author:
+  - "Htet Phone Khaing"
+  - "Tatum Miranda Smith"
+  - "Artem Cherkaskyy"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    latex_engine: xelatex
+geometry: margin=2.3cm
+fontsize: 11pt
+header-includes:
+  - \usepackage{float}
+  - \usepackage{booktabs}
+  - \floatplacement{figure}{H}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+suppressPackageStartupMessages({
+  library(dplyr); library(knitr); library(stringr)
+})
+
+# ---- helpers ---------------------------------------------------------------
+safe_read <- function(p) if (file.exists(p)) {
+  tryCatch(read.csv(p, stringsAsFactors = FALSE), error = function(e) NULL)
+} else NULL
+
+fmt_range <- function(d) {
+  d <- suppressWarnings(as.Date(d))
+  d <- d[!is.na(d)]
+  if (!length(d)) return("n/a")
+  paste(format(min(d), "%b %Y"), "--", format(max(d), "%b %Y"))
+}
+
+nice_platform <- function(x) {
+  x <- sub("\\.com$", "", tolower(x))           # strip trailing .com
+  map <- c(turo = "Turo", fatllama = "Fat Llama", rvshare = "RVshare",
+           outdoorsy = "Outdoorsy", lensrentals = "Lensrentals",
+           getaround = "Getaround", kitsplit = "KitSplit",
+           sharegrid = "ShareGrid")
+  out <- map[x]; out[is.na(out)] <- x[is.na(out)]; unname(out)
+}
+
+# ---- load the three Reddit passes + Trustpilot -----------------------------
+v1    <- safe_read("data/reddit_all.csv")           # initial keyword scrape
+raw   <- safe_read("data/reddit_targeted.csv")      # targeted, every comment
+clean <- safe_read("data/reddit_clean.csv")         # cleaned + themed (USED)
+tp    <- safe_read("data/trustpilot_reviews.csv")   # Trustpilot reviews
+
+v1_n    <- if (!is.null(v1))    nrow(v1)    else NA
+raw_n   <- if (!is.null(raw))   nrow(raw)   else NA
+clean_n <- if (!is.null(clean)) nrow(clean) else NA
+
+# Reddit (clean) descriptives
+if (!is.null(clean)) {
+  cl_subs    <- length(unique(clean$subreddit))
+  cl_threads <- length(unique(clean$url))
+  cl_theme   <- as.data.frame(table(clean$theme))
+  names(cl_theme) <- c("theme", "n")
+  cl_dates   <- fmt_range(clean$date)
+  cl_meanlen <- round(mean(nchar(clean$comment), na.rm = TRUE))
+}
+
+# Trustpilot descriptives
+if (!is.null(tp)) {
+  tp_n <- nrow(tp)
+  tp_by_platform <- tp |>
+    mutate(platform = nice_platform(platform)) |>
+    group_by(Platform = platform) |>
+    summarise(Reviews = n(),
+              `Mean rating` = round(mean(rating, na.rm = TRUE), 2),
+              `Date range`  = fmt_range(date_posted),
+              .groups = "drop") |>
+    arrange(desc(Reviews))
+  tp_rating <- as.data.frame(table(factor(tp$rating, levels = 1:5)))
+  names(tp_rating) <- c("Stars", "Reviews")
+  tp_rating$Share <- paste0(round(100 * tp_rating$Reviews / sum(tp_rating$Reviews)), "%")
+  tp_class <- table(cut(tp$rating, c(0, 2, 3, 5),
+                        labels = c("negative (1-2*)", "neutral (3*)", "positive (4-5*)")))
+  tp_dates <- fmt_range(tp$date_posted)
+}
+```
+
+\newpage
+
+# The idea
+
+The **sharing economy** --- peer-to-peer marketplaces where private owners rent
+out homes (Airbnb, Vrbo), cars and RVs (Turo, Getaround, RVshare, Outdoorsy),
+and creative equipment such as cameras and drones (Fat Llama, KitSplit,
+Lensrentals) --- runs entirely on **trust between strangers**. A host has to
+trust a guest with their property; a renter has to trust that a listing is real
+and a counterpart is fair. These platforms increasingly insert **AI and AI
+agents** into exactly that trust relationship: automated guest screening,
+chatbot support, dynamic ("smart") pricing, automated messaging, and
+damage-assessment models.
+
+Our research question is therefore:
+
+> **How do users perceive AI and AI agents in peer-to-peer rental platforms,
+> and what drives or erodes their trust --- across different rental types and
+> across two very different kinds of text: open community discussion (Reddit)
+> versus paying-customer reviews (Trustpilot)?**
+
+We deliberately collect **two complementary corpora**. Following the
+professor's framing, **Reddit is our baseline** --- the place where users
+*deliberate*, argue, complain, and speculate about AI, hosting, and rentals in
+their own words. **Trustpilot is our verification layer** --- structured
+post-transaction reviews that come with a **1--5 star rating that acts as a
+ground-truth sentiment label**, with no lexicon required. The two are not
+identical sources, and that is the point: where the open Reddit discussion and
+the labelled Trustpilot reviews *agree*, we gain confidence; where they
+*diverge*, we learn something about the gap between public discourse and actual
+customer experience.
+
+The remainder of this report documents (i) how each corpus was collected,
+targeted, balanced and cleaned; (ii) what the resulting datasets look like; and
+(iii) the analysis steps each team member will carry out next.
+
+\newpage
+
+# Data source 1 --- Reddit (the baseline)
+
+We collected Reddit data with the `RedditExtractoR` package, which queries
+Reddit's public API. The corpus went through **three passes**; each fixed a
+problem in the previous one.
+
+```{r reddit-passes}
+passes <- data.frame(
+  Pass    = c("v1 -- keyword (global)", "v2 -- subreddit-targeted", "v2 -- cleaned + themed"),
+  Script  = c("scraping\\_data\\_v1.R", "01\\_scrape\\_reddit.R", "05\\_clean\\_reddit.R"),
+  Rows    = c(ifelse(is.na(v1_n), "~14,090", format(v1_n, big.mark = ",")),
+              ifelse(is.na(raw_n), "~1,009", format(raw_n, big.mark = ",")),
+              ifelse(is.na(clean_n), "~314", format(clean_n, big.mark = ","))),
+  Status  = c("baseline only (off-topic)", "raw, on-topic", "USED for analysis")
+)
+kable(passes, booktabs = TRUE, escape = FALSE,
+      caption = "Three Reddit collection passes. Output files, in order: reddit\\_all.csv, reddit\\_targeted.csv, reddit\\_clean.csv.")
+```
+
+## Pass 1 --- why the first scrape failed
+
+The first attempt searched **all of Reddit** with a single bag of generic
+keywords (`"AI rental platform helpful automation trust"`). This returned a
+large but essentially **off-topic** corpus of roughly
+`r ifelse(is.na(v1_n), "14,000", format(v1_n, big.mark=","))` comments:
+threads about K-pop drama, gaming, *Am I the Asshole* stories and US politics
+dominated, and **fewer than 1 % of comments even mentioned "rental"**. We keep
+this file (`data/reddit_all.csv`) only as a transparency baseline --- it is the
+"before" picture that motivated the rebuild.
+
+## Pass 2 --- how we *targeted* the scrape
+
+The fix was to stop searching all of Reddit and instead search **inside
+topic-relevant subreddits**. `RedditExtractoR::find_thread_urls()` lets us
+restrict a keyword search to a single subreddit, which is what makes the results
+on-topic. We defined **47 (subreddit, keyword) search pairs** organised in six
+thematic layers:
+
+- **Home / stay sharing** --- r/AirBnB, r/airbnb\_hosts, r/AirBnBHosts, r/vrbo,
+  r/ShortTermRentals · *keywords:* "AI", "host AI", "automated message", "co-host"
+- **Car / RV sharing** --- r/Turo, r/gigwork, r/RVing, r/GoRVing ·
+  *keywords:* "AI", "automated", "trust", "rental AI"
+- **Camera / film / drone gear** --- r/photography, r/AskPhotography,
+  r/cinematography, r/videography, r/Filmmakers, r/drones, r/dronephotography,
+  r/DJI · *keywords:* "AI rental", "lens rental", "rent gear"
+- **Event tech** --- r/eventproduction, r/EventProduction, r/livesound ·
+  *keywords:* "AI"
+- **AI agents in commerce** --- r/Entrepreneur, r/SaaS, r/startups,
+  r/automation, r/ChatGPT, r/OpenAI, r/artificial, r/singularity ·
+  *keywords:* "AI agent", "automation rental", "agent booking"
+- **Trust / privacy** --- r/privacy, r/technology ·
+  *keywords:* "AI agent", "AI assistant data", "AI agent trust"
+
+The scrape parameters were:
+
+- **`threads_per_search = 30`** --- up to 30 most relevant threads per pair.
+- **`sort_by = "relevance"`, `period = "all"`** --- full Reddit history, so
+  older threads that have accumulated discussion are included.
+- **`comments >= 6`** --- a thread is only fetched if it has real discussion;
+  1--2 reply threads are dropped.
+- **`max_threads = 400`** --- a ceiling on total threads fetched to keep the
+  rate-limited comment pull to a reasonable wall-clock.
+- Comments shorter than 20 characters, `[deleted]`/`[removed]` bodies, and
+  duplicate comment IDs are discarded.
+
+Crucially, **the keyword used to *find* a thread does not become its label.**
+Keywords only locate relevant discussion; sentiment and topic are derived later
+from the actual comment text. This keeps the scrape from biasing the analysis
+toward whatever words we happened to search for.
+
+This pass produced **`r ifelse(is.na(raw_n), "~1,009", format(raw_n, big.mark=","))`
+on-topic comments** (`data/reddit_targeted.csv`).
+
+## Pass 3 --- how we *balanced* and cleaned
+
+Two mechanisms keep a handful of viral threads from dominating the corpus:
+
+1. **Per-thread comment cap (in `01_scrape_reddit.R`).** The script can write a
+   *balanced* version that caps each thread at **120 comments**, keeping the
+   highest-upvoted ones, so one 500-comment thread cannot swamp the dataset.
+2. **Dropping the noisy subreddits (`05_clean_reddit.R`).** Even after capping,
+   two subreddits --- **r/Filmmakers** and **r/Entrepreneur** --- still
+   dominated, because they hosted three viral threads about AI replacing humans
+   in *creative and business careers* (e.g. "Sir Roger Deakins", "I don't think
+   these guys actually like movies"). Those debates are off-topic for
+   *rental-platform* trust, so we remove both subreddits entirely.
+
+The cleaning step also tags every remaining comment with a **`theme`** column:
+
+- **`sharing_economy`** --- rental, host, car/RV and equipment-gear subreddits;
+- **`ai_tech`** --- AI, agent, privacy and technology subreddits.
+
+The result is **`data/reddit_clean.csv`**, the file all downstream analysis
+uses.
+
+## The Reddit dataset
+
+```{r reddit-desc, results='asis'}
+if (!is.null(clean)) {
+  cat(sprintf(paste0(
+    "After cleaning, the corpus is **%s comments** drawn from **%d subreddits** ",
+    "and **%d distinct threads**, spanning **%s**, with a mean comment length of ",
+    "**%d characters**. The two themes are close to evenly balanced:\n\n"),
+    format(clean_n, big.mark = ","), cl_subs, cl_threads, cl_dates, cl_meanlen))
+} else {
+  cat("_`data/reddit_clean.csv` not found --- run `05_clean_reddit.R` first._\n\n")
+}
+```
+
+```{r reddit-theme}
+if (!is.null(clean)) {
+  tt <- cl_theme
+  tt$Share <- paste0(round(100 * tt$n / sum(tt$n)), "%")
+  names(tt) <- c("Theme", "Comments", "Share")
+  kable(tt, booktabs = TRUE, caption = "Reddit theme balance (reddit\\_clean.csv).")
+}
+```
+
+```{r reddit-subs}
+if (!is.null(clean)) {
+  ss <- clean |> count(subreddit, theme, sort = TRUE) |> head(12)
+  names(ss) <- c("Subreddit", "Theme", "Comments")
+  kable(ss, booktabs = TRUE,
+        caption = "Top subreddits in the cleaned Reddit corpus.")
+}
+```
+
+\newpage
+
+# Data source 2 --- Trustpilot (the verification layer)
+
+## Why Trustpilot
+
+Trustpilot reviews give us something Reddit cannot: a **structured 1--5 star
+rating attached to every piece of text**. That star rating is a
+**ground-truth sentiment label** we did not have to infer. This is exactly what
+makes Trustpilot a *verification* layer --- we can compute a sentiment score on
+the review text and check it against the star the reviewer actually gave, then
+carry that validated lexicon over to the unlabelled Reddit comments
+(convergent validity).
+
+## How we scraped it
+
+Trustpilot blocks naive scraping, so we used the **Apify** actor
+`casper11515/trustpilot-reviews-scraper` through the **Apify web UI**, running
+it **once per company**. For each platform we entered its Trustpilot company
+page, capped the run at roughly 1,000--2,000 reviews, and downloaded the result
+CSV into `data/trustpilot_raw/`. The script **`02_merge_trustpilot.R`** then:
+
+- reads every CSV in that folder (robust to BOM / carriage-return / invalid-UTF-8
+  issues from the export);
+- normalises the actor's columns into a canonical schema
+  (`platform, rating, title, body, author, country, date_posted, ...`);
+- keeps English reviews with at least 20 characters of text and drops duplicate
+  review IDs.
+
+The merged output is **`data/trustpilot_reviews.csv`**.
+
+## The Trustpilot dataset
+
+```{r tp-desc, results='asis'}
+if (!is.null(tp)) {
+  cat(sprintf(paste0(
+    "The merged file holds **%s unique English reviews** across **%d ",
+    "platforms**, spanning **%s**. Each row carries a 1--5 star rating, ",
+    "review title and body, reviewer country, and the company's reply where ",
+    "one exists.\n\n"),
+    format(tp_n, big.mark = ","), nrow(tp_by_platform), tp_dates))
+} else {
+  cat("_`data/trustpilot_reviews.csv` not found --- run `02_merge_trustpilot.R` first._\n\n")
+}
+```
+
+```{r tp-platform}
+if (!is.null(tp)) {
+  kable(tp_by_platform, booktabs = TRUE,
+        caption = "Trustpilot reviews per platform, with mean star rating.")
+}
+```
+
+```{r tp-rating}
+if (!is.null(tp)) {
+  kable(tp_rating, booktabs = TRUE, row.names = FALSE,
+        caption = "Trustpilot star-rating distribution (the ground-truth labels).")
+}
+```
+
+```{r tp-note, results='asis'}
+if (!is.null(tp)) {
+  cat(sprintf(paste0(
+    "Collapsed into classes, the reviews split as **%d negative (1-2 stars)**, ",
+    "**%d neutral (3 stars)**, and **%d positive (4-5 stars)**. The strong ",
+    "positive skew is typical of opt-in review platforms and means we will ",
+    "**down-sample the positive class** before any balanced classification.\n\n"),
+    tp_class[[1]], tp_class[[2]], tp_class[[3]]))
+}
+```
+
+\newpage
+
+# How the two sources fit together
+
+```{r fit-table}
+fit <- data.frame(
+  Dimension = c("Role", "Text type", "Sentiment label", "Volume", "Time span"),
+  Reddit = c("Baseline", "Open discussion", "Inferred (AFINN / NRC)",
+             ifelse(is.na(clean_n), "~314", format(clean_n, big.mark=",")),
+             if (!is.null(clean)) cl_dates else "n/a"),
+  Trustpilot = c("Verification", "Post-transaction review", "Ground truth (1-5 stars)",
+                 ifelse(is.null(tp), "~3,912", format(tp_n, big.mark=",")),
+                 if (!is.null(tp)) tp_dates else "n/a"),
+  check.names = FALSE
+)
+kable(fit, booktabs = TRUE,
+      caption = "Reddit (baseline) vs Trustpilot (verification).")
+```
+
+Reddit answers *what users talk about* around AI and rentals; Trustpilot answers
+*how paying customers rate* the experience. The triangulation logic is:
+**(1)** compute lexicon sentiment on Trustpilot
+review text; **(2)** validate it against the star rating (do 1-star reviews score
+negative?); **(3)** apply the *validated* lexicon to Reddit, where no labels
+exist; **(4)** compare the *topics* that drive negative sentiment in each source.
+Agreement across two structurally different corpora is far stronger evidence than
+either source alone.
+
+\newpage
+
+# Next steps
+
+> **Note.** The paragraphs below are working drafts / placeholders. Each owner
+> will expand their section with the actual figures, tables and interpretation
+> once the analysis scripts are run. Assignments are provisional --- swap as
+> suits the team's strengths.
+
+## Preprocessing and topic modelling --- Htet Phone Khaing
+
+**Draft.** This section will document the shared preprocessing pipeline
+(`06_preprocess.R`): lower-casing, removal of URLs and Reddit/Markdown
+artefacts, stop-word removal, lemmatisation, and tokenisation into both unigrams
+and bigrams for the two corpora. It will then present the topic model
+(`07_lda.R`): we fit 3--4 LDA topics per theme (the corpus is small --- 38
+Reddit threads --- so we cap at four topics to avoid over-fragmentation), report
+the top terms per topic, and run a seeded LDA using trust-related seed words
+(`trust`, `safe`, `scam`, `verified`, `automated`) to test whether a coherent
+"trust" topic emerges. Expected finding to confirm or revise: AI-side topics
+lean toward "AI tools / plugins" because one r/ChatGPT thread is large, while
+sharing-economy topics separate into hosting logistics, pricing, and
+gear-quality clusters.
+
+## Visualisation and reporting --- Tatum Miranda Smith
+
+**Draft.** This section will hold the required visual analysis built on top of
+the preprocessed tokens: top-10 word-frequency bar charts per theme; comparison
+and commonality word clouds (unigram and bigram); word co-occurrence networks
+(`widyr::pairwise_count` + `ggraph`); and a single sentiment time-series
+overlaying the two sources. It will also fold these figures, plus the dataset
+tables from this report, into the final paper. Draft narrative to complete:
+"car- and RV-sharing platforms cluster at 3.7--4.6 stars on Trustpilot while
+equipment rental sits far lower, and the Reddit discussion mirrors this split in
+its vocabulary of complaints."
+
+## Sentiment, embeddings and synthesis --- Artem Cherkaskyy
+
+**Draft.** This section will compute AFINN and NRC sentiment on both corpora,
+validate the lexicon against Trustpilot stars (the convergent-validity check),
+and report the NRC eight-emotion profile per source. It will add GloVe word
+embeddings (`text2vec`) to inspect the nearest neighbours of "trust", "AI" and
+"host", then map the findings onto established trust frameworks (Mayer et al.
+1995 --- ability / benevolence / integrity; TAM). The section closes with the
+project's practical contribution: a set of **AI-agent design cards** ---
+concrete, data-backed recommendations for how a rental platform should (and
+should not) deploy AI in the trust relationship.
+
+\newpage
+
+# Limitations
+
+- **Trustpilot skews positive** (opt-in bias) --- we down-sample for balanced
+  classification.
+- **Equipment-rental platforms are thin** (Lensrentals and KitSplit have few
+  Trustpilot reviews), so per-platform claims there are weak.
+- **One Reddit thread is large** relative to the cleaned corpus, pulling the
+  AI-side topics toward "AI tools" language; we note this rather than hide it.
+- **Few Reddit threads overall** (38) --- the realistic LDA ceiling is 3--4
+  topics per theme.
+- **"Trust" is mostly implicit** in both corpora (expressed through host/renter,
+  payment and review language) rather than as the literal word, so we measure it
+  via topics and sentiment, not keyword counts.
+- **English-only**, and Reddit's anti-bot wall now prevents fresh anonymous
+  re-scrapes (reproduction requires an authenticated OAuth app --- see
+  `legacy/scrape_reddit_oauth_attempt.R`).
+- **Per-platform review dates need a parse check:** for Turo and Getaround the
+  computed date range collapses to a single month, which points to a
+  date-format inconsistency in those two Apify exports. The overall span is
+  reliable, but `02_merge_trustpilot.R` should be revisited before any
+  sentiment-over-time analysis that splits by platform.
+
+---
+
+\footnotesize
+*Repository:* <https://github.com/tyomachkaa/ai-acceptance-sharing-economy> ·
+*Course:* Online Content Analysis, WU Vienna, 2026.
