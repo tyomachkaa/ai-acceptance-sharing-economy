@@ -1,9 +1,9 @@
-# AI Acceptance in the Sharing Economy
+# AI Acceptance Across Service Platforms
 
-> A text-analysis project on **how users perceive AI agents on peer-to-peer rental platforms** (Turo, Airbnb, Fat Llama, RVshare, Outdoorsy, KitSplit, …) — and what builds or erodes their trust.
+> A text-analysis project on **how people accept (or reject) AI agents** — and how acceptance changes with the *role* AI plays: the product itself (ChatGPT, Claude, Replika), a marketplace add-on (Turo, Airbnb), or the support desk (customer-service chatbots).
 
 Final project for **Online Content Analysis** at WU Vienna.
-We collect two complementary text sources, compare them, and turn the findings into design recommendations for AI agents in rental marketplaces.
+We collect two complementary text sources, compare them across three service contexts, and turn the findings into design recommendations for AI agents.
 
 ---
 
@@ -12,13 +12,12 @@ We collect two complementary text sources, compare them, and turn the findings i
 | | What we did | Outcome |
 |---|---|---|
 | **Sources** | Reddit (discussion baseline) + Trustpilot (verification via star ratings) | 2 self-scraped corpora |
-| **Reddit** | Topic-targeted scrape → cleaned + themed | **314 on-topic comments** across 17 subreddits, balanced 47/53 between `sharing_economy` and `ai_tech` |
-| **Trustpilot** | 7 sharing-economy platforms via Apify | 3,912 reviews with 1-5★ ground-truth labels |
-| **Headline finding** | Trust varies sharply by *rental type* | Car/RV sharing 3.7-4.6★ vs equipment rental 1-3★ |
-| **Methodology note** | v1 keyword scrape was off-topic; v2 subreddit-scoped; v2-cleaned drops viral-thread noise | progressively more relevant corpus |
+| **Reddit** | Pulled from the Arctic Shift archive across AI / rental / support subreddits | **4,250 on-topic comments**, tagged `ai_service` (2008) / `rental` (1715) / `customer_service` (527) |
+| **Trustpilot** | 7 rental platforms via Apify, AI/automation reviews flagged | 3,912 reviews with 1-5★ labels; **60 AI/automation reviews average 2.32★ vs 4.21★** |
+| **Headline finding** | On rental platforms, hitting AI/automation correlates sharply with frustration | 2.32★ vs 4.21★ |
+| **Collection note** | Reddit's 2026 bot-wall blocks all live scraping (403) → we pull from the Arctic Shift research archive instead | reproducible, no token/proxy |
 
-Read the full progress report: [outputs/coaching_overview.pdf](outputs/coaching_overview.pdf).
-Methodology fix in detail: [outputs/reddit_scrape_comparison.pdf](outputs/reddit_scrape_comparison.pdf).
+Read the working report: [outputs/report.pdf](outputs/report.pdf).
 
 ---
 
@@ -30,43 +29,43 @@ Methodology fix in detail: [outputs/reddit_scrape_comparison.pdf](outputs/reddit
 ├── LICENSE                              <- MIT
 ├── .gitignore
 │
-├── 01_scrape_reddit.R                   <- run 1st: subreddit-targeted Reddit pull
-├── 02_merge_trustpilot.R                <- run 2nd: combine Apify Trustpilot CSVs
+├── 01_fetch_reddit_arcticshift.py       <- run 1st: Reddit baseline from Arctic Shift archive
+├── 01b_fetch_reddit_supplement.py       <- recovers rate-limited pulls, appends to baseline
+├── 02_merge_trustpilot.R                <- combine Apify Trustpilot CSVs → trustpilot_reviews.csv
 ├── 03_preliminary_analysis.R            <- quick exploratory pass + figures
-├── 05_clean_reddit.R                    <- drop off-topic subs + tag theme  → reddit_clean.csv
+├── 06_ai_acceptance.R                   <- flag AI/automation reviews + tag platform_category
 │
-├── report.Rmd                           <- data-collection & methodology working report (auto-reads the CSVs)
-├── coaching_overview.Rmd                <- main progress report
+├── report.Rmd                           <- working report (auto-reads the CSVs)
+├── coaching_overview.Rmd                <- earlier progress report
 │
 ├── data/
-│   ├── reddit_all.csv                   <- v1 initial keyword scrape (14,090 rows, off-topic — kept as baseline)
-│   ├── reddit_targeted.csv              <- v2 raw (1,009 rows, source for cleaning)
-│   ├── reddit_clean.csv                 <- v2 cleaned + themed (USE THIS — 314 rows)
+│   ├── reddit_baseline.csv              <- USE THIS — 4,250 on-topic comments, 3 categories
 │   ├── trustpilot_reviews.csv           <- merged Trustpilot reviews (3,912 rows)
-│   └── trustpilot_raw/                  <- per-platform Apify CSVs (inputs)
+│   ├── trustpilot_flagged.csv           <- + platform_category + ai_related flag
+│   ├── ai_experience.csv                <- the 60 AI/automation reviews (2.32★)
+│   ├── trustpilot_raw/                  <- per-platform Apify CSVs (inputs)
+│   ├── reddit_all.csv                   <- v1 keyword scrape (off-topic, transparency only)
+│   ├── reddit_targeted.csv              <- v2 (superseded)
+│   └── reddit_clean.csv                 <- v2 cleaned (superseded by reddit_baseline.csv)
 │
-├── outputs/                             <- knitted PDFs
-│   ├── report.pdf                       <- data & methodology working report
-│   ├── coaching_overview.pdf
-│   └── reddit_scrape_comparison.pdf     <- methodology one-pager (v1 vs v2)
-│
+├── outputs/                             <- knitted PDFs (report.pdf, coaching_overview.pdf, …)
 ├── figures/                             <- generated PNGs
 │
 └── legacy/                              <- old / failed attempts kept for transparency
-    ├── scraping_data_v1.R               <- the original off-topic keyword scrape
-    ├── scrape_trustpilot_api_attempt.R  <- failed Apify API (free-tier capped)
-    ├── scrape_trustpilot_saswave_attempt.R
+    ├── scraping_data_v1.R               <- original off-topic keyword scrape
     ├── scrape_reddit_oauth_attempt.R    <- OAuth deep-scrape (Reddit form blocked)
-    └── setup_reddit_oauth_test.R
+    ├── setup_reddit_oauth_test.R
+    ├── scrape_trustpilot_api_attempt.R  <- failed Apify API (free-tier capped)
+    └── scrape_trustpilot_saswave_attempt.R
 ```
 
 ---
 
 ## Research question
 
-> **How do users perceive AI agents on peer-to-peer rental platforms, and what drives trust — across platform types and across community discussion (Reddit) vs. paying-customer experience (Trustpilot)?**
+> **How do users accept and experience AI agents across different service platforms — and what drives or erodes trust as AI moves from being the product, to a marketplace add-on, to the support desk?**
 
-The sharing economy increasingly embeds AI for matching, messaging, pricing and damage assessment. We study how users *react* to that automation and which design factors earn (or lose) their trust.
+Online services increasingly put AI between the user and the thing they came for — chatbots answer tickets, algorithms screen and price, automated systems decide. We study how people *react* to that AI across three contexts (**AI-native services**, **peer-to-peer rentals**, **customer service**), and which design factors earn or lose their trust.
 
 ---
 
@@ -74,78 +73,69 @@ The sharing economy increasingly embeds AI for matching, messaging, pricing and 
 
 ### Reddit (community discussion — the baseline)
 
-- Tool: [`RedditExtractoR`](https://cran.r-project.org/package=RedditExtractoR) (R, public Reddit API)
-- Strategy: **subreddit-scoped keyword search** across 30+ communities (r/Turo, r/AirBnB, r/photography, r/drones, r/privacy, r/ChatGPT, …)
-- Post-processing: `05_clean_reddit.R` drops 2 off-topic subreddits (r/Filmmakers, r/Entrepreneur — they held the 3 viral threads that made up ~67% of the raw scrape) and tags each remaining comment with a `theme` column (`sharing_economy` | `ai_tech`).
-- **Output file to use:** `data/reddit_clean.csv` (314 rows, 17 subreddits, 47/53 theme balance)
-- See `01_scrape_reddit.R` (collection) and `05_clean_reddit.R` (cleaning)
+- Tool: the **[Arctic Shift](https://github.com/ArthurHeitmann/arctic_shift) research archive** API (a Pushshift successor). We do **not** scrape live Reddit — its 2026 anti-bot wall hard-blocks every anonymous endpoint (HTTP 403), defeating `RedditExtractoR` and `.json`-based Apify actors alike. Arctic Shift serves archived Reddit over a clean public API: no token, no proxy, no cost.
+- Strategy (`01_fetch_reddit_arcticshift.py`): **AI-native subreddits** (r/ChatGPT, r/OpenAI, r/ClaudeAI, r/CharacterAI, r/replika, r/artificial, r/Bard, r/perplexity_ai) pulled in full; **rental + customer-service subreddits** (r/Turo, r/AirBnB, r/airbnb_hosts, r/CustomerService) pulled by AI/automation keyword search. Each comment tagged with a `platform_category`.
+- **Output file to use:** `data/reddit_baseline.csv` (4,250 comments — `ai_service` 2008 / `rental` 1715 / `customer_service` 527, 2023–2026).
+- `01b_fetch_reddit_supplement.py` recovers any pulls that hit the archive's rate limit, with backoff.
 
-> **Reddit anti-bot wall (2026):** Reddit now hard-blocks anonymous JSON endpoints from most non-residential IPs (HTTP 403 + bot-wall HTML on every request). The v2 scrape worked when those rules were laxer. A later attempt to re-scrape via OAuth is preserved in `legacy/scrape_reddit_oauth_attempt.R` — it works in principle but requires a Reddit `script` app, which we did not register.
+> Earlier sharing-economy-targeted scrapes (`data/reddit_targeted.csv`, `reddit_clean.csv`) are kept for transparency but **superseded** — they were <2% on-topic for AI experiences; the Arctic Shift baseline is ~80%+.
 
-### Trustpilot (paying-customer reviews)
+### Trustpilot (paying-customer reviews — the verification)
 
-- Tool: [Apify](https://apify.com) actor `casper11515/trustpilot-reviews-scraper` (run via Apify web UI)
-- Platforms scraped: Turo, Fat Llama, RVshare, Outdoorsy, Lensrentals, Getaround, KitSplit
-- Each result CSV downloaded into `data/trustpilot_raw/`, then merged with `02_merge_trustpilot.R`
-- Output: `data/trustpilot_reviews.csv` — 3,912 reviews, 1-5★ ratings = real sentiment ground truth
+- Tool: [Apify](https://apify.com) actor `casper11515/trustpilot-reviews-scraper` (run via Apify web UI), one company at a time.
+- Platforms scraped: Turo, Fat Llama, RVshare, Outdoorsy, Lensrentals, Getaround, KitSplit → merged by `02_merge_trustpilot.R` → `data/trustpilot_reviews.csv` (3,912 reviews, 1-5★).
+- `06_ai_acceptance.R` then tags each review with a `platform_category` and an `ai_related` flag → `data/trustpilot_flagged.csv` + `data/ai_experience.csv` (the 60 AI/automation reviews, **avg 2.32★ vs 4.21★**).
+- **To extend** to AI-native services: scrape character.ai / replika.com / openai.com / perplexity.ai into `data/trustpilot_raw/`, re-run `02` then `06` — they auto-tag `ai_service`.
 
 ### Why two sources
 
-Per the professor's framing: **Reddit = baseline discussion corpus, Trustpilot = verification layer.**
+**Reddit = discussion baseline, Trustpilot = star-labelled verification.**
 
-- Reddit captures *deliberation* — host/renter disputes, complaints, AI debates.
-- Trustpilot captures *post-transaction satisfaction* with **1–5★ ground-truth labels** — no lexicon needed.
-- We use Trustpilot stars to *validate* the AFINN/NRC sentiment we compute on Reddit (convergent validity check). Trustpilot is the heavier corpus and the more analytically valuable one; Reddit is the discussion layer that answers "what do users *talk about* around AI and rentals."
+- Reddit captures *deliberation* — what people say about AI agents in their own words, across the three service contexts.
+- Trustpilot captures *post-transaction acceptance* with **1–5★ ground-truth labels** — no lexicon needed.
+- We validate the AFINN/NRC sentiment computed on Reddit against Trustpilot stars (convergent validity), then compare which topics drive negativity in each context.
 
 ---
 
 ## How to reproduce
 
-### 1. Install R packages
+### 1. Install requirements
 
 ```r
 install.packages(c(
-  "RedditExtractoR", "dplyr", "tidyr", "stringr", "purrr",
+  "dplyr", "tidyr", "stringr", "purrr",
   "tidytext", "ggplot2", "lubridate", "scales",
-  "wordcloud", "RColorBrewer",
-  "rmarkdown", "knitr"
+  "wordcloud", "RColorBrewer", "rmarkdown", "knitr"
 ))
 ```
 
-### 2. Re-scrape Reddit (optional — data is checked in)
+The Reddit collector is **Python 3 (stdlib only)** — no pip installs needed.
 
-```r
-setwd("/path/to/Final Project")
-source("01_scrape_reddit.R")     # raw scrape  → data/reddit_targeted.csv + _balanced.csv
-source("05_clean_reddit.R")      # clean+theme → data/reddit_clean.csv  (USE THIS)
+### 2. Re-fetch the Reddit baseline (optional — data is checked in)
+
+```bash
+python3 01_fetch_reddit_arcticshift.py    # → data/reddit_baseline.csv (USE THIS)
+python3 01b_fetch_reddit_supplement.py    # recovers rate-limited pulls, appends
 ```
 
-Wall-clock: ~30-45 min for `01_scrape_reddit.R`, ~5 sec for `05_clean_reddit.R`.
+Wall-clock: ~3–4 min. Pulls from the Arctic Shift archive, so no Reddit login / proxy / token.
 
-> ⚠️ As of mid-2026 Reddit hard-blocks anonymous JSON requests from most IPs. A fresh run of `01_scrape_reddit.R` may return HTTP 403 — in that case use the OAuth path documented in `legacy/scrape_reddit_oauth_attempt.R` (requires registering a `script` app at `reddit.com/prefs/apps`).
+### 3. Re-merge + flag Trustpilot (optional — data is checked in)
 
-### 3. Re-merge Trustpilot (optional — data is checked in)
-
-The Trustpilot scrape is done **via the Apify web UI** (one company at a time, max ~1000 reviews each). Download each result CSV into `data/trustpilot_raw/`, then:
+Scrape each company via the Apify web UI, drop the CSVs into `data/trustpilot_raw/`, then:
 
 ```r
-source("02_merge_trustpilot.R")
+source("02_merge_trustpilot.R")   # → data/trustpilot_reviews.csv
+source("06_ai_acceptance.R")      # → data/trustpilot_flagged.csv + data/ai_experience.csv
 ```
 
-Writes `data/trustpilot_reviews.csv`.
-
-### 4. Build the PDFs
-
-In R or RStudio:
+### 4. Build the report
 
 ```r
-rmarkdown::render("coaching_overview.Rmd")
-rmarkdown::render("reddit_scrape_comparison.Rmd")
+rmarkdown::render("report.Rmd")   # → report.pdf (copy into outputs/)
 ```
 
-PDFs land at the project root (or copy into `outputs/`).
-
-### 5. (Optional) Run the quick analysis script
+### 5. (Optional) quick exploratory figures
 
 ```r
 source("03_preliminary_analysis.R")    # base-R figures into figures/
@@ -153,13 +143,13 @@ source("03_preliminary_analysis.R")    # base-R figures into figures/
 
 ---
 
-## Methodology note: three passes on Reddit
+## Methodology note: how the Reddit corpus evolved
 
-| Pass | Script | Output | Size | Why we moved on |
+| Pass | Method | Output | Size | Verdict |
 |---|---|---|---|---|
-| v1 — keyword global | `legacy/scraping_data_v1.R` | `data/reddit_all.csv` | 14,090 | Single global keyword search → dominated by K-pop, gaming, US politics. <1% mentioned *rental*. Kept as a baseline for transparency / re-analysis. |
-| v2 — subreddit-targeted | `01_scrape_reddit.R` | `data/reddit_targeted.csv` | 1,009 | Searches inside topic-relevant subs. On-topic but ~67% of corpus was 3 viral threads in r/Filmmakers + r/Entrepreneur about AI-anxiety in creative careers. |
-| **v2-cleaned** | **`05_clean_reddit.R`** | **`data/reddit_clean.csv`** | **314** | Drops the 2 noisy subs entirely, tags each comment with a `theme` (`sharing_economy` \| `ai_tech`). 47/53 balanced. **This is the file the analysis uses.** |
+| v1 — keyword global | `legacy/scraping_data_v1.R` | `reddit_all.csv` | 14,090 | Off-topic (K-pop, gaming, politics). Transparency only. |
+| v2 — subreddit-targeted | `legacy/…` + `05_clean_reddit.R` | `reddit_clean.csv` | 314 | On-topic for *rentals* but <2% about AI experiences. Superseded. |
+| **v3 — Arctic Shift archive** | **`01_fetch_reddit_arcticshift.py`** | **`reddit_baseline.csv`** | **4,250** | **~80%+ on-topic for AI experiences, 3 service contexts. The file the analysis uses.** Live Reddit scraping is blocked in 2026; the archive sidesteps it. |
 
 The v1-vs-v2 comparison figures: [outputs/reddit_scrape_comparison.pdf](outputs/reddit_scrape_comparison.pdf).
 
@@ -192,12 +182,11 @@ WU Vienna — *Online Content Analysis* course, 2026.
 ## Limitations
 
 - Trustpilot reviews skew positive (typical of opt-in review platforms) — we downsample for balanced classification.
-- Equipment-rental platforms (KitSplit n=5, Lensrentals n=35) are under-sampled (low Trustpilot presence).
-- "Trust" appears mostly *implicitly* in the corpora (through host/renter, payment and review language) rather than as the literal word — we measure it via topics and sentiment, not keyword counts.
+- The Reddit `rental` slice was pulled by AI/automation keyword search, including a broad `app` query that adds some general app-experience noise; every row keeps a `source_query` column so it can be filtered precisely.
+- The Trustpilot `ai_service` context is not yet populated (AI-native platforms still being scraped); until then the Trustpilot side covers AI-as-add-on only.
+- "Trust" appears mostly *implicitly* in the corpora (bot/human, automated, algorithm language) rather than as the literal word — we measure it via topics and sentiment, not keyword counts.
 - English-only.
-- **One dominant Reddit thread** ("Ultimate Guide: 86 ChatGPT Plugins") accounts for 26% of `reddit_clean.csv` — AI-side LDA will lean toward "AI tools/plugins" framing. Noted explicitly in the report.
-- **Reddit thread count is small** (38 unique threads in `reddit_clean.csv`) — realistic LDA ceiling is 3–4 topics per theme.
-- Reddit anti-bot wall (2026) prevents fresh anonymous scrapes; reproducing requires OAuth setup (see `legacy/scrape_reddit_oauth_attempt.R`).
+- Reddit data is **archival** (Arctic Shift) because the live anti-bot wall (2026) blocks fresh anonymous scraping. Turo/Getaround per-platform Trustpilot review dates need a parse check before any per-platform time-series.
 
 ---
 
