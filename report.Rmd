@@ -78,7 +78,7 @@ something real.
 anonymous data endpoint (HTTP 403), which defeats the usual R/`RedditExtractoR`
 and `.json`-based scrapers alike. We therefore pull from the **Arctic Shift**
 research archive (a Pushshift successor) over its public API --- archived Reddit
-data, no live blocking, no token or proxy (`01_fetch_reddit_arcticshift.py`).
+data, no live blocking, no token or proxy (`01_fetch_reddit_arcticshift.R`).
 AI-native subreddits are pulled in full; rental and customer-service subreddits
 are pulled by AI/automation **keyword search** so we keep only on-topic comments.
 Every comment is tagged with a `platform_category`.

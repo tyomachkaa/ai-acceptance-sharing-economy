@@ -29,8 +29,7 @@ Read the working report: [outputs/report.pdf](outputs/report.pdf).
 ├── LICENSE                              <- MIT
 ├── .gitignore
 │
-├── 01_fetch_reddit_arcticshift.py       <- run 1st: Reddit baseline from Arctic Shift archive
-├── 01b_fetch_reddit_supplement.py       <- recovers rate-limited pulls, appends to baseline
+├── 01_fetch_reddit_arcticshift.R        <- run 1st: Reddit baseline from Arctic Shift archive
 ├── 02_merge_trustpilot.R                <- combine Apify Trustpilot CSVs → trustpilot_reviews.csv
 ├── 06_ai_acceptance.R                   <- flag AI/automation reviews + tag platform_category
 │
@@ -62,9 +61,8 @@ Online services increasingly put AI between the user and the thing they came for
 ### Reddit (community discussion — the baseline)
 
 - Tool: the **[Arctic Shift](https://github.com/ArthurHeitmann/arctic_shift) research archive** API (a Pushshift successor). We do **not** scrape live Reddit — its 2026 anti-bot wall hard-blocks every anonymous endpoint (HTTP 403), defeating `RedditExtractoR` and `.json`-based Apify actors alike. Arctic Shift serves archived Reddit over a clean public API: no token, no proxy, no cost.
-- Strategy (`01_fetch_reddit_arcticshift.py`): **AI-native subreddits** (r/ChatGPT, r/OpenAI, r/ClaudeAI, r/CharacterAI, r/replika, r/artificial, r/Bard, r/perplexity_ai) pulled in full; **rental + customer-service subreddits** (r/Turo, r/AirBnB, r/airbnb_hosts, r/CustomerService) pulled by AI/automation keyword search. Each comment tagged with a `platform_category`.
-- **Output file to use:** `data/reddit_baseline.csv` (4,250 comments — `ai_service` 2008 / `rental` 1715 / `customer_service` 527, 2023–2026).
-- `01b_fetch_reddit_supplement.py` recovers any pulls that hit the archive's rate limit, with backoff.
+- Strategy (`01_fetch_reddit_arcticshift.R`): **AI-native subreddits** (r/ChatGPT, r/OpenAI, r/ClaudeAI, r/CharacterAI, r/replika, r/artificial, r/Bard, r/perplexity_ai) pulled in full; **rental + customer-service subreddits** (r/Turo, r/AirBnB, r/airbnb_hosts, r/CustomerService) pulled by AI/automation keyword search. Each comment tagged with a `platform_category`. Built-in retry/backoff handles the archive's rate limit.
+- **Output file to use:** `data/reddit_baseline.csv` (~4,270 comments — `ai_service` ~2027 / `rental` 1715 / `customer_service` 527, 2023–2026).
 
 > Earlier sharing-economy-targeted Reddit scrapes were <2% on-topic for AI experiences and have been removed; the Arctic Shift baseline is ~80%+ on-topic.
 
@@ -97,16 +95,15 @@ install.packages(c(
 ))
 ```
 
-The Reddit collector is **Python 3 (stdlib only)** — no pip installs needed.
+The Reddit collector needs only `jsonlite` (in the list above) — it reads the Arctic Shift API directly, no `httr`/`curl` required.
 
 ### 2. Re-fetch the Reddit baseline (optional — data is checked in)
 
-```bash
-python3 01_fetch_reddit_arcticshift.py    # → data/reddit_baseline.csv (USE THIS)
-python3 01b_fetch_reddit_supplement.py    # recovers rate-limited pulls, appends
+```r
+source("01_fetch_reddit_arcticshift.R")    # → data/reddit_baseline.csv (USE THIS)
 ```
 
-Wall-clock: ~3–4 min. Pulls from the Arctic Shift archive, so no Reddit login / proxy / token.
+Or from the shell: `Rscript 01_fetch_reddit_arcticshift.R`. Wall-clock ~3–4 min. Pulls from the Arctic Shift archive — no Reddit login / proxy / token. Retry/backoff handles rate limits.
 
 ### 3. Re-merge + flag Trustpilot (optional — data is checked in)
 
@@ -131,7 +128,7 @@ rmarkdown::render("report.Rmd")   # → report.pdf (copy into outputs/)
 |---|---|---|---|
 | v1 — keyword global | global Reddit keyword search | 14,090 | Off-topic (K-pop, gaming, politics). |
 | v2 — subreddit-targeted | sharing-economy subreddit search + cleaning | 314 | On-topic for *rentals* but <2% about AI experiences. |
-| **v3 — Arctic Shift archive** | **`01_fetch_reddit_arcticshift.py`** → `reddit_baseline.csv` | **4,250** | **~80%+ on-topic for AI experiences, 3 service contexts. The file the analysis uses.** Live Reddit scraping is blocked in 2026; the archive sidesteps it. |
+| **v3 — Arctic Shift archive** | **`01_fetch_reddit_arcticshift.R`** → `reddit_baseline.csv` | **~4,270** | **~80%+ on-topic for AI experiences, 3 service contexts. The file the analysis uses.** Live Reddit scraping is blocked in 2026; the archive sidesteps it. |
 
 (v1 and v2 produced corpora that were removed in cleanup; only the Arctic Shift baseline is kept.)
 

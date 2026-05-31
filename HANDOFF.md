@@ -20,7 +20,7 @@ Short internal status note. Full overview for outsiders: [`README.md`](README.md
 
 ### Reddit — discussion baseline (`data/reddit_baseline.csv`, 4,250 comments)
 
-Pulled from the **Arctic Shift** research archive (`01_fetch_reddit_arcticshift.py`), tagged by `platform_category`:
+Pulled from the **Arctic Shift** research archive (`01_fetch_reddit_arcticshift.R`), tagged by `platform_category`:
 
 | Category | Comments | Source |
 |---|---|---|
@@ -47,8 +47,7 @@ On-topic check: customer_service ~95%, rental ~85% AI-keyword; ai_service on-top
 
 | Script | Purpose |
 |---|---|
-| `01_fetch_reddit_arcticshift.py` | Reddit baseline from Arctic Shift (pure Python stdlib) |
-| `01b_fetch_reddit_supplement.py` | recovers rate-limited pulls, appends to baseline |
+| `01_fetch_reddit_arcticshift.R` | Reddit baseline from Arctic Shift (base R + jsonlite; retry/backoff built in) |
 | `02_merge_trustpilot.R` | merge Apify Trustpilot CSVs → `trustpilot_reviews.csv` |
 | `06_ai_acceptance.R` | flag AI/automation reviews + categorise platforms |
 | `report.Rmd` | working report — reads all CSVs live → `outputs/report.pdf` |
@@ -91,9 +90,8 @@ install.packages(c(
 ))
 ```
 
-The Reddit collector is Python 3 (stdlib only — no installs). Re-fetch with
-`python3 01_fetch_reddit_arcticshift.py` then `python3 01b_fetch_reddit_supplement.py`.
-Build the report with `rmarkdown::render("report.Rmd")`.
+Everything is R now. Re-fetch Reddit with `source("01_fetch_reddit_arcticshift.R")`
+(needs only `jsonlite`), and build the report with `rmarkdown::render("report.Rmd")`.
 
 ---
 
