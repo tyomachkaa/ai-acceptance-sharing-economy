@@ -33,25 +33,19 @@ Methodology fix in detail: [outputs/reddit_scrape_comparison.pdf](outputs/reddit
 ├── 01_scrape_reddit.R                   <- run 1st: subreddit-targeted Reddit pull
 ├── 02_merge_trustpilot.R                <- run 2nd: combine Apify Trustpilot CSVs
 ├── 03_preliminary_analysis.R            <- quick exploratory pass + figures
-├── 04_compare_versions.R                <- v1-vs-v2 Reddit methodology comparison
 ├── 05_clean_reddit.R                    <- drop off-topic subs + tag theme  → reddit_clean.csv
 │
 ├── coaching_overview.Rmd                <- main progress report
-├── reddit_scrape_comparison.Rmd         <- 3-page methodology note
 │
 ├── data/
-│   ├── reddit_all.csv                   <- INITIAL scrape (off-topic baseline)
-│   ├── reddit_positive.csv              <- initial "positive class" subset
-│   ├── reddit_negative.csv              <- initial "negative class" subset
-│   ├── reddit_targeted.csv              <- v2 raw (subreddit-targeted)
-│   ├── reddit_targeted_balanced.csv     <- v2 capped per thread (kept for comparison)
+│   ├── reddit_targeted.csv              <- v2 raw (1,009 rows, source for cleaning)
 │   ├── reddit_clean.csv                 <- v2 cleaned + themed (USE THIS — 314 rows)
 │   ├── trustpilot_reviews.csv           <- merged Trustpilot reviews (3,912 rows)
 │   └── trustpilot_raw/                  <- per-platform Apify CSVs (inputs)
 │
 ├── outputs/                             <- knitted PDFs
 │   ├── coaching_overview.pdf
-│   └── reddit_scrape_comparison.pdf
+│   └── reddit_scrape_comparison.pdf     <- methodology one-pager (v1 vs v2)
 │
 ├── figures/                             <- generated PNGs
 │
@@ -152,20 +146,19 @@ PDFs land at the project root (or copy into `outputs/`).
 
 ```r
 source("03_preliminary_analysis.R")    # base-R figures into figures/
-source("04_compare_versions.R")        # v1 vs v2 Reddit comparison
 ```
 
 ---
 
 ## Methodology note: three passes on Reddit
 
-| Pass | Script | File | Size | Why we moved on |
+| Pass | Script | Output | Size | Why we moved on |
 |---|---|---|---|---|
-| v1 — keyword global | `legacy/scraping_data_v1.R` | `data/reddit_all.csv` | 14,090 | Single global keyword search → dominated by K-pop, gaming, US politics. <1% mentioned *rental*. |
+| v1 — keyword global | `legacy/scraping_data_v1.R` | (discarded) | 14,090 | Single global keyword search → dominated by K-pop, gaming, US politics. <1% mentioned *rental*. Raw CSV no longer kept in repo (re-runnable from the legacy script). |
 | v2 — subreddit-targeted | `01_scrape_reddit.R` | `data/reddit_targeted.csv` | 1,009 | Searches inside topic-relevant subs. On-topic but ~67% of corpus was 3 viral threads in r/Filmmakers + r/Entrepreneur about AI-anxiety in creative careers. |
 | **v2-cleaned** | **`05_clean_reddit.R`** | **`data/reddit_clean.csv`** | **314** | Drops the 2 noisy subs entirely, tags each comment with a `theme` (`sharing_economy` \| `ai_tech`). 47/53 balanced. **This is the file the analysis uses.** |
 
-The v1-vs-v2 comparison (with figures) lives at: [outputs/reddit_scrape_comparison.pdf](outputs/reddit_scrape_comparison.pdf).
+The v1-vs-v2 comparison figures: [outputs/reddit_scrape_comparison.pdf](outputs/reddit_scrape_comparison.pdf).
 
 ---
 

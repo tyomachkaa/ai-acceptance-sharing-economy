@@ -25,10 +25,10 @@ theme_set(theme_minimal(base_size = 10))
 ```
 
 ```{r load}
-rd <- read.csv("data/reddit_targeted_balanced.csv", stringsAsFactors = FALSE) |>
+rd <- read.csv("data/reddit_clean.csv", stringsAsFactors = FALSE) |>
   transmute(source = "Reddit",
             text   = comment,
-            group  = theme,                       # sharing_economy / ai_creative_tech
+            group  = theme,                       # sharing_economy / ai_tech
             date   = as.Date(date))
 
 tp <- read.csv("data/trustpilot_reviews.csv", stringsAsFactors = FALSE) |>

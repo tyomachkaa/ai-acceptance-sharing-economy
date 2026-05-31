@@ -20,9 +20,7 @@ This is the short internal status note. The full overview for outsiders lives in
 
 | File | Rows | Notes |
 |---|---|---|
-| `data/reddit_all.csv` | 14,090 | INITIAL keyword scrape — **off-topic, baseline only** |
-| `data/reddit_targeted.csv` | 1,009 | v2 raw subreddit-targeted scrape |
-| `data/reddit_targeted_balanced.csv` | 697 | v2 capped at 120/thread — kept for comparison |
+| `data/reddit_targeted.csv` | 1,009 | v2 raw subreddit-targeted scrape (source for cleaning) |
 | **`data/reddit_clean.csv`** | **314** | **v2 cleaned + themed — USE THIS** |
 | `data/trustpilot_reviews.csv` | 3,912 | 7 platforms: Turo (1482), Fat Llama (835), RVshare (773), Outdoorsy (751), Lensrentals (35), Getaround (31), KitSplit (5) |
 | `data/trustpilot_raw/` | 7 files | Per-platform Apify downloads, before merge |
@@ -79,15 +77,13 @@ If anyone on the team can complete the Reddit app form successfully later, those
 | `01_scrape_reddit.R` | Subreddit-targeted Reddit scrape (v2) | ✅ working |
 | `02_merge_trustpilot.R` | Combine Apify Trustpilot CSVs | ✅ working |
 | `03_preliminary_analysis.R` | Quick exploratory pass + figures | ✅ working |
-| `04_compare_versions.R` | v1 vs v2 Reddit methodology comparison | ✅ working |
 | **`05_clean_reddit.R`** | **Drop off-topic subs + theme tagging → reddit_clean.csv** | **✅ working** |
-| `coaching_overview.Rmd` | Progress report for coaching session | ✅ knit, 5 figures (stats reflect pre-cleanup corpus) |
-| `reddit_scrape_comparison.Rmd` | Methodology note (v1 vs v2) | ✅ knit |
+| `coaching_overview.Rmd` | Progress report for coaching session | ✅ knit, 5 figures; now reads from `reddit_clean.csv` so a re-knit reflects the 314-comment cleaned corpus |
 | `outputs/coaching_overview.pdf` | Main deliverable for coach | ✅ |
-| `outputs/reddit_scrape_comparison.pdf` | Methodology one-pager | ✅ |
+| `outputs/reddit_scrape_comparison.pdf` | Methodology one-pager (v1 vs v2) — PDF kept, source Rmd removed during cleanup | ✅ |
 | `figures/` | 4 PNGs from the prelim pass | ✅ |
 
-Note: `coaching_overview.Rmd` still references the older 697-comment balanced corpus. If you want it re-rendered with the cleaned 314-comment numbers, that's a 5-minute job — ping the repo owner.
+Note: the existing `outputs/coaching_overview.pdf` was knit against the older 697-comment file. The source `.Rmd` now reads `data/reddit_clean.csv`, so a re-knit reproduces it with the cleaned 314-comment numbers — that's a 1-line knit and refreshes all 5 figures + the stats.
 
 ---
 

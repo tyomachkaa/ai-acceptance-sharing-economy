@@ -16,6 +16,10 @@
 
 # ---- macOS ----
 .DS_Store
+**/.DS_Store
+
+# ---- run logs (regenerable) ----
+logs/
 
 # ---- secrets ----
 .env
