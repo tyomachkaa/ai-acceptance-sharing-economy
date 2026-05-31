@@ -1,6 +1,6 @@
 ---
 title: "AI Acceptance in the Sharing Economy"
-subtitle: "Data Collection and Methodology --- Working Report"
+subtitle: "Data, Methodology and Progress against the Brief --- Working Report"
 author: "Htet Phone Khaing · Tatum Miranda Smith · Artem Cherkaskyy"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output:
@@ -174,25 +174,77 @@ if (!is.null(tp))
     tp_class[["neg"]], tp_class[["neu"]], tp_class[["pos"]]))
 ```
 
-# Fit and next steps
+# Progress against the assignment brief
 
-The two sources triangulate: compute lexicon sentiment on Trustpilot text,
-validate it against the star rating, apply the validated lexicon to Reddit, then
-compare which *topics* drive negative sentiment in each. Agreement across two
-structurally different corpora is stronger evidence than either alone.
+Each task below is tagged **Done**, **Partly done**, **In progress** or
+**To do**. Our two classes are the Reddit theme (`sharing_economy` vs `ai_tech`)
+and, on Trustpilot, positive vs negative reviews (the star rating gives the
+label). Owners are still to be assigned by the team.
 
-**Planned analysis (owners to be assigned by the team):**
+## Dataset and preprocessing
 
-- **Preprocessing + topic modelling** --- clean, lemmatise, tokenise (1- and
-  2-grams) both corpora; fit 3--4 LDA topics per theme (small corpus -> cap at
-  four) plus a seeded LDA on trust words.
-- **Visualisation + report** --- top-word bar charts, comparison/commonality
-  word clouds, co-occurrence networks, a combined sentiment time-series; fold
-  into the final paper.
-- **Sentiment + embeddings + synthesis** --- AFINN/NRC sentiment validated
-  against Trustpilot stars, NRC emotion profiles, GloVe neighbours of *trust* /
-  *AI* / *host*, mapped to trust frameworks (Mayer 1995; TAM), ending in
-  data-backed **AI-agent design cards**.
+**Selection --- Done.** Two self-scraped corpora, no X/Twitter content: a
+targeted Reddit discussion corpus (`reddit_clean.csv`, 314 themed comments) and
+3,912 Trustpilot reviews with 1--5 star labels across seven rental platforms.
+
+**Cleaning --- Partly done; full pass next.** Collection already strips
+deleted/removed bodies, sub-20-character comments and duplicate IDs. The
+normalisation the brief specifies --- lowercasing, removing punctuation, numbers
+and stop words, tokenising, and stemming / lemmatising --- is the immediate next
+script (`06_preprocess.R`), emitting unigram and bigram token tables for both
+corpora.
+
+## Exploratory analysis
+
+**Word frequency --- Partly done.** A first top-terms bar chart exists
+(`figures/fig1_topwords.png`, split by source). The brief's exact form --- top
+10 words per class as side-by-side bars --- will be regenerated from the cleaned
+tokens once preprocessing lands.
+
+**Word clouds --- Partly done.** A comparison cloud (words coloured by the
+source where they are relatively more frequent) is already produced; still to
+add are the commonality cloud (shared words) and the bigram variants, per class.
+
+## Structural and sentiment analysis
+
+**Word networks --- To do.** Per-class co-occurrence networks via
+`widyr::pairwise_count` + `ggraph`, showing how key terms cluster spatially.
+
+**Sentiment --- Partly done.** A Trustpilot rating-over-time timeline exists.
+The brief's single-graph sentiment comparison of both classes (AFINN and NRC) is
+still to do; uniquely, we then validate that lexicon against Trustpilot's star
+labels before trusting it on the unlabelled Reddit text.
+
+## Advanced modeling
+
+**Topic modelling (LDA) --- To do.** 3--5 topics per class on unigrams and
+bigrams, with trust-related seed words and a `text2vec` cross-check; the small
+Reddit corpus (38 threads) realistically caps us nearer 3--4 topics there.
+
+**Text embeddings --- To do.** GloVe / Word2Vec via `text2vec` to surface
+semantic clusters and the nearest neighbours of *trust*, *AI* and *host* inside
+the identified topics.
+
+## Synthesis and reporting
+
+**Integration --- To do.** Weave networks, sentiment and topics into one
+narrative. The spine is the cross-source triangulation: validate the lexicon on
+Trustpilot stars, apply it to Reddit, then compare which topics drive negativity
+in each source --- agreement across two structurally different corpora is
+stronger evidence than either alone.
+
+**Strategic insights --- To do.** Turn the class differences into actionable
+recommendations for AI-agent design on rental platforms --- a short set of
+concrete "design cards" on where automation builds versus erodes trust.
+
+**Literature --- Partly identified.** Trust and adoption frameworks are already
+in scope (Mayer et al. 1995 --- ability / benevolence / integrity; Davis's TAM;
+UTAUT) and will be cited alongside text-mining method references in the final
+report.
+
+**Report --- In progress.** This document covers data and methods; the final
+report expands the exploratory, modelling, synthesis and literature items above
+into full results.
 
 # Limitations
 
