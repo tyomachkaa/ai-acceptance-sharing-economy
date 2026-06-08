@@ -1,0 +1,6 @@
+"priority","recommendation","evidence"
+1,"Keep a human one click away","Automation / 'no human' is the strongest marker of negative reviews (8x on Trustpilot) and the top negative topic on Reddit."
+2,"Disclose the AI and admit its limits","Accuracy and 'doesn't work' complaints separate the classes most cleanly (negative class 1.8x on Reddit, 6.9x on Trustpilot)."
+3,"Optimise for first-contact resolution","Support and resolution language drives the negative class in both sources (1.2x Reddit, 1.8x Trustpilot)."
+4,"Match the persona to the role","Anthropomorphism is welcomed when AI IS the product but reads as cold in transactions; Reddit is most positive for AI-native, least for rentals."
+5,"Show all-in price and refund rules up front","Pricing and fees dominate negative rental reviews (5.4x on Trustpilot); a rental-specific, not AI-specific, frustration."

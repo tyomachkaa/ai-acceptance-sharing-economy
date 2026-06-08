@@ -1,0 +1,17 @@
+"class","emotion","score"
+"positive","anger",0.496666666666667
+"positive","anticipation",1.335
+"positive","disgust",0.315833333333333
+"positive","fear",0.563333333333333
+"positive","joy",0.949166666666667
+"positive","sadness",0.576666666666667
+"positive","surprise",0.5025
+"positive","trust",2.1025
+"negative","anger",0.941666666666667
+"negative","anticipation",0.9775
+"negative","disgust",0.630833333333333
+"negative","fear",0.96
+"negative","joy",0.534166666666667
+"negative","sadness",1.035
+"negative","surprise",0.423333333333333
+"negative","trust",1.83166666666667

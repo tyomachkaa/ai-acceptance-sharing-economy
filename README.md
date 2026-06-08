@@ -30,23 +30,23 @@ Read the working report: [outputs/report.pdf](outputs/report.pdf).
 ├── .gitignore
 │
 ├── 01_fetch_reddit_arcticshift.R        <- run 1st: Reddit baseline from Arctic Shift archive
-├── 02_merge_trustpilot.R                <- combine Apify Trustpilot CSVs → trustpilot_reviews.csv
+├── 02_merge_trustpilot.R                <- combine Apify Trustpilot CSVs -> trustpilot_reviews.csv
 ├── 06_ai_acceptance.R                   <- flag AI/automation reviews + tag platform_category
 │
-├── steps 1 to 4.R                       <- STEPS 1–4: Reddit text analysis (clouds, network, LDA, GloVe)
-├── 05_integration.R                     <- STEP 5: Reddit×Trustpilot integration → outputs/*.csv + figures/05_*.png
-├── report.Rmd                           <- working report (auto-reads the CSVs + figures)
+├── analysis.R                           <- THE analysis (steps 1-10): preprocess, clouds, network,
+│                                           sentiment, LDA, GloVe, validation, role gradient, recommendations
+├── report.Rmd                           <- final report (auto-reads outputs/ + figures/)
 │
 ├── data/
-│   ├── reddit_baseline.csv              <- USE THIS — 4,269 on-topic comments, 3 categories
+│   ├── reddit_baseline.csv              <- 4,269 on-topic comments, 3 categories
 │   ├── trustpilot_reviews.csv           <- merged Trustpilot reviews (3,912 rows)
 │   ├── trustpilot_flagged.csv           <- + platform_category + ai_related flag
-│   ├── ai_experience.csv                <- the 60 AI/automation reviews (2.32★)
 │   └── trustpilot_raw/                  <- per-platform Apify CSVs (inputs)
 │
-├── figures/                             <- 05_validity, 05_theme_prevalence, 05_negativity_drivers, 05_ai_penalty
+├── figures/                             <- fig_01 .. fig_11 (top words, clouds, NRC, network, LDA,
+│                                           validity, themes, drivers, AI penalty)
 └── outputs/
-    ├── report.pdf                       <- knitted working report
+    ├── report.pdf                       <- knitted final report
     └── *.csv                            <- step-5 tables (design_cards, drivers, metrics, …)
 ```
 
@@ -93,13 +93,16 @@ Online services increasingly put AI between the user and the thing they came for
 
 ```r
 install.packages(c(
-  "dplyr", "tidyr", "stringr", "purrr",
-  "tidytext", "ggplot2", "lubridate", "scales",
-  "wordcloud", "RColorBrewer", "rmarkdown", "knitr"
+  # core + reporting
+  "dplyr", "tidyr", "stringr", "scales", "rmarkdown", "knitr", "jsonlite",
+  # text mining (analysis.R)
+  "tidytext", "textstem", "wordcloud", "RColorBrewer", "reshape2",
+  "igraph", "ggraph", "topicmodels", "slam", "text2vec", "syuzhet",
+  "ggplot2"
 ))
 ```
 
-The Reddit collector needs only `jsonlite` (in the list above) — it reads the Arctic Shift API directly, no `httr`/`curl` required.
+The Reddit collector (`01_...R`) needs only `jsonlite` (reads the Arctic Shift API directly, no `httr`/`curl`). `analysis.R` uses the bundled **Bing** and **NRC** lexicons, so it runs with no downloads.
 
 ### 2. Re-fetch the Reddit baseline (optional — data is checked in)
 
@@ -118,11 +121,15 @@ source("02_merge_trustpilot.R")   # → data/trustpilot_reviews.csv
 source("06_ai_acceptance.R")      # → data/trustpilot_flagged.csv + data/ai_experience.csv
 ```
 
-### 4. Build the report
+### 4. Run the analysis, then build the report
 
 ```r
-rmarkdown::render("report.Rmd")   # → report.pdf (copy into outputs/)
+source("analysis.R")              # -> figures/fig_*.png + outputs/*.csv  (~20s)
+rmarkdown::render("report.Rmd")   # -> report.pdf (copy into outputs/)
 ```
+
+`analysis.R` is the whole pipeline (steps 1-10) in one script; `report.Rmd`
+reads its figures and tables, so run `analysis.R` first.
 
 ---
 
@@ -138,17 +145,22 @@ rmarkdown::render("report.Rmd")   # → report.pdf (copy into outputs/)
 
 ---
 
-## Analysis pipeline (done)
+## Analysis pipeline (one script: `analysis.R`)
 
-| Step | What | Where | Status |
-|---|---|---|---|
-| 1 | Preprocessing — clean, lemmatise, two-class split, 1- & 2-grams | `steps 1 to 4.R` | done |
-| 2 | Word frequency (top-10/class) + commonality/comparison clouds | `steps 1 to 4.R` | done |
-| 3 | Co-occurrence network + NRC sentiment comparison | `steps 1 to 4.R` | done |
-| 4 | LDA topics (1g+2g, per class) + GloVe embeddings | `steps 1 to 4.R` | done |
-| 5 | **Integration** (Reddit×Trustpilot validity, shared themes, AI-role gradient), **Strategic insights** (design cards), **Literature** | `05_integration.R` + `report.Rmd` | done |
+| Step | What | Method |
+|---|---|---|
+| 1 | Preprocess + two classes | lemmatise; Bing lexicon positive/negative split |
+| 2 | Word frequency | top-10 words per class |
+| 3 | Word clouds | commonality + comparison (1- and 2-gram) |
+| 4 | Sentiment | NRC eight emotions, both classes |
+| 5 | Co-occurrence network | bigram network (igraph + ggraph) |
+| 6 | Topic models | LDA, 4 topics per class, 1- and 2-gram |
+| 7 | Word embeddings | GloVe nearest neighbours |
+| 8 | Validation | inferred class vs Trustpilot stars |
+| 9 | Themes + AI-role gradient | shared theme tagging on both sources |
+| 10 | Strategic recommendations | ordered design rules |
 
-**Step-5 headline:** the Reddit sentiment classes agree with real Trustpilot stars **93.4% (κ = 0.76)**; four cross-source frustration drivers; AI is welcomed as the product but penalised as a rental add-on (**2.32★ vs 4.21★**). See [`outputs/report.pdf`](outputs/report.pdf).
+**Headline results:** the Reddit sentiment classes agree with real Trustpilot stars **93.4% (κ = 0.76)**; four cross-source frustration drivers; AI is welcomed as the product but penalised as a rental add-on (**2.32★ vs 4.21★**). See [`outputs/report.pdf`](outputs/report.pdf).
 
 ---
 

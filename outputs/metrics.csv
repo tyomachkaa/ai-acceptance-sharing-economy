@@ -1,5 +1,7 @@
 "metric","value"
 "reddit_n","4269"
+"reddit_pos","1619"
+"reddit_neg","1382"
 "tp_n","3912"
 "validity_agreement_pct","93.4"
 "validity_kappa","0.76"
@@ -7,4 +9,4 @@
 "ai_star","2.32"
 "non_ai_star","4.21"
 "ai_penalty","1.89"
-"n_cross_validated_drivers","4"
+"n_cross_drivers","4"

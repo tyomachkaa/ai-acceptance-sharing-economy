@@ -1,7 +1,7 @@
 ---
 title: "AI Acceptance Across Service Platforms"
-subtitle: "From Discussion to Design --- Integrating Reddit and Trustpilot"
-author: "Htet Phone Khaing · Tatum Miranda Smith · Artem Cherkaskyy"
+subtitle: "Text Mining Reddit and Trustpilot: Methods in Practice"
+author: "Htet Phone Khaing, Tatum Miranda Smith, Artem Cherkaskyy"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output:
   pdf_document:
@@ -22,315 +22,333 @@ suppressPackageStartupMessages({ library(dplyr); library(knitr) })
 
 safe_read <- function(p) if (file.exists(p))
   tryCatch(read.csv(p, stringsAsFactors = FALSE), error = function(e) NULL) else NULL
-fmt_range <- function(d) {
-  d <- suppressWarnings(as.Date(d)); d <- d[!is.na(d)]
-  if (!length(d)) return("n/a")
-  paste(format(min(d), "%b %Y"), "--", format(max(d), "%b %Y"))
-}
 
-rd <- safe_read("data/reddit_baseline.csv")        # Reddit discussion baseline
-tp <- safe_read("data/trustpilot_flagged.csv")     # Trustpilot + ai_related flag
-ai <- safe_read("data/ai_experience.csv")          # Trustpilot AI subset
+rd  <- safe_read("data/reddit_baseline.csv")
+tp  <- safe_read("data/trustpilot_flagged.csv")
+m   <- safe_read("outputs/metrics.csv")
+rg  <- safe_read("outputs/role_gradient.csv")
+rec <- safe_read("outputs/strategic_recommendations.csv")
+dw  <- safe_read("outputs/negativity_drivers_wide.csv")
+nb  <- safe_read("outputs/embeddings_neighbours.csv")
 
-# Step-5 (this report's analysis layer) outputs
-s5 <- safe_read("outputs/step5_metrics.csv")
-dc <- safe_read("outputs/design_cards.csv")
-dw <- safe_read("outputs/negativity_drivers_wide.csv")
-rg <- safe_read("outputs/role_gradient.csv")
-getm <- function(k) { if (is.null(s5)) return("n/a")
-  v <- s5$value[s5$metric == k]; if (length(v)) as.character(v[1]) else "n/a" }
-
-if (!is.null(rd)) {
-  rd_n <- nrow(rd); rd_subs <- length(unique(rd$subreddit))
-  rd_dates <- fmt_range(rd$date)
-  rd_cat <- rd |> count(platform_category, name = "Comments") |> arrange(desc(Comments))
-  top_subs <- rd |> count(subreddit, sort = TRUE) |> head(6)
-  top_str <- paste(sprintf("r/%s (%d)", top_subs$subreddit, top_subs$n), collapse = ", ")
-}
-if (!is.null(tp)) {
-  tp_n <- nrow(tp); tp_dates <- fmt_range(tp$date_posted)
-  tp_ai_n <- sum(tp$ai_related, na.rm = TRUE)
-}
+getm <- function(k) { if (is.null(m)) return("n/a")
+  v <- m$value[m$metric == k]; if (length(v)) as.character(v[1]) else "n/a" }
+rd_n   <- if (!is.null(rd)) nrow(rd) else NA
+tp_n   <- if (!is.null(tp)) nrow(tp) else NA
+rd_cat <- if (!is.null(rd)) as.list(table(rd$platform_category)) else list()
 ```
 
 # The idea and research question
 
-Online services increasingly put **AI and AI agents** between the user and the
-thing they came for: chatbots answer support tickets, algorithms screen and
-price, automated systems make decisions. We study **how people accept (or
-reject) that AI** --- and, crucially, how acceptance changes with the *role* AI
-plays. We compare three service contexts:
+Online services increasingly place AI agents between the user and the thing
+they came for. Chatbots answer support tickets, algorithms screen and price,
+automated systems take decisions. We study how people accept or reject that AI,
+and how acceptance changes with the role AI plays. We compare three service
+contexts:
 
-- **AI-native services** --- the product *is* an AI agent (ChatGPT, Claude,
-  Replika, Gemini, Perplexity);
-- **Peer-to-peer rentals** --- AI is a *peripheral* automation layer on a human
-  marketplace (Turo, Airbnb);
-- **Customer service** --- AI runs the *support* layer (chatbots replacing
+- **AI-native services**, where the product itself is an AI agent (ChatGPT,
+  Claude, Replika, Gemini, Perplexity);
+- **Peer-to-peer rentals**, where AI is an automation layer on a human
+  marketplace (Turo, Airbnb, Fat Llama);
+- **Customer service**, where AI runs the support layer (chatbots replacing
   agents).
 
-The middle context is the assignment's heart --- a **peer-to-peer sharing
-economy** for high-value professional gear: cameras and drones (Fat Llama),
-photography lenses (Lensrentals), film and event kit (KitSplit), vehicles (Turo,
-Getaround) and RVs (Outdoorsy, RVshare) --- while the AI-native and
-customer-service contexts act as comparison lenses that reveal how acceptance
-shifts as AI moves from *being* the product, to a marketplace add-on, to the
+The middle context is the assignment's core: a peer-to-peer sharing economy for
+high-value professional gear such as cameras and drones (Fat Llama),
+photography lenses (Lensrentals) and film and event kit (KitSplit), alongside
+vehicles (Turo, Getaround) and RVs (Outdoorsy). The AI-native and
+customer-service contexts act as comparison points that show how acceptance
+shifts as AI moves from being the product, to a marketplace add-on, to the
 support desk.
 
 > **Research question.** How do users accept and experience AI agents across
-> different service platforms --- and what drives or erodes trust as AI moves
-> from being the product, to a marketplace add-on, to the support desk?
+> different service platforms, and what drives or erodes trust as AI moves from
+> being the product, to a marketplace add-on, to the support desk?
 
-We use two complementary corpora. **Reddit is the discussion baseline** ---
-open deliberation where users describe AI experiences in their own words.
-**Trustpilot is the verification layer** --- reviews carrying a **1--5 star
-rating** that acts as a ground-truth acceptance label. Where the open
-discussion and the labelled reviews agree we gain confidence; where they
-diverge we learn something real.
+Reddit is our discussion baseline, where users describe AI experiences in their
+own words. Trustpilot is our verification layer, where every review carries a
+1 to 5 star rating that acts as a ground-truth acceptance label. Where the open
+discussion and the labelled reviews agree, we gain confidence. Where they
+diverge, we learn something.
 
-# Data in brief
+# The data
 
-**Reddit (`reddit_baseline.csv`).** `r format(rd_n, big.mark=",")` comments
-across `r rd_subs` subreddits (`r rd_dates`), pulled from the **Arctic Shift**
-research archive (`01_fetch_reddit_arcticshift.R`) because Reddit's 2026
-anti-bot wall blocks live scraping. AI-native subreddits are pulled in full;
-rental and support subreddits by AI/automation keyword search. Each comment is
-tagged with a `platform_category`: ai\_service `r rd_cat$Comments[rd_cat$platform_category=="ai_service"]`,
-rental `r rd_cat$Comments[rd_cat$platform_category=="rental"]`,
-customer\_service `r rd_cat$Comments[rd_cat$platform_category=="customer_service"]`.
-Top subreddits: `r top_str`.
+We collected two text sources and used no X or Twitter content.
 
-**Trustpilot (`trustpilot_flagged.csv`).** `r format(tp_n, big.mark=",")` reviews
-from seven peer-to-peer rental platforms (Apify actor
-`casper11515/trustpilot-reviews-scraper`, merged by `02_merge_trustpilot.R`),
-each with a 1--5 star label. `06_ai_acceptance.R` flags the
-**`r tp_ai_n` reviews that describe an AI / automation experience** (bots,
-algorithms, automated decisions, "no human").
+**Reddit (baseline).** `r format(rd_n, big.mark=",")` comments from 12
+subreddits (November 2023 to May 2026), collected from the
+[Arctic Shift](https://github.com/ArthurHeitmann/arctic_shift) research archive
+(`01_fetch_reddit_arcticshift.R`) because Reddit's 2026 anti-bot wall blocks
+live scraping. AI-native subreddits are pulled in full; rental and support
+subreddits are pulled by AI and automation keywords. Every comment carries a
+`platform_category`: ai\_service `r rd_cat$ai_service`,
+rental `r rd_cat$rental`, customer\_service `r rd_cat$customer_service`.
+
+**Trustpilot (verification).** `r format(tp_n, big.mark=",")` reviews from seven
+peer-to-peer rental platforms (Turo, Fat Llama, RVshare, Outdoorsy, Lensrentals,
+Getaround, KitSplit), collected with an Apify actor and merged by
+`02_merge_trustpilot.R`. Each review has a 1 to 5 star rating, and
+`06_ai_acceptance.R` flags the ones that describe an AI or automation experience.
 
 # Method
 
-The pipeline runs in five steps. **Steps 1--4** (`steps 1 to 4.R`) operate on the
-Reddit baseline: (1) **preprocessing** --- clean, lowercase, stop-word removal,
-lemmatisation, and a two-class split (positive vs negative) from lexicon
-sentiment; (2) **exploratory** --- top-10 words per class, commonality and
-comparison word clouds (1- and 2-gram); (3) **structural & sentiment** ---
-bigram co-occurrence network and an NRC emotion comparison; (4) **modelling** ---
-LDA topics per class (1- and 2-gram) and GloVe embeddings for the neighbours of
-*trust*, *bot*, *host*.
+All analysis runs in one script, `analysis.R`, after data collection. Reddit is
+mined in depth (steps 1 to 7) and Trustpilot enters as the verification layer
+(steps 8 to 10). The two classes compared throughout are positive versus
+negative acceptance: on Reddit inferred from a sentiment lexicon, on Trustpilot
+read directly from the star rating. We picked methods we could apply
+meaningfully to this question, and the pipeline covers every technique the brief
+asks for.
 
-**Step 5** (`05_integration.R`, this report) is the synthesis layer. It brings in
-Trustpilot and fuses the two sources three ways: a **convergent-validity test**
-of the Reddit method against real stars, a **shared theme lexicon** applied to
-both corpora, and the **AI-role gradient**. For portability it uses the bundled
-Bing lexicon (sign-of-sum, the same two-class logic as the AFINN classing in
-steps 1--4) and base-R I/O, so it runs with no downloads.
-
-# Findings: integrating the two sources
-
-The brief asks how the **word networks, sentiments, and topics overlap to tell a
-cohesive story**. They do, and Trustpilot lets us prove it rather than assert
-it. The negative-class structures that steps 1--4 surface on Reddit --- the
-co-occurrence hubs around *bot* / *human* / *support*, the negative-leaning NRC
-emotions, and the LDA topics about automation and unresolved problems ---
-reappear as the themes that drive **low star ratings** on Trustpilot. Three
-results carry the story.
-
-## The Reddit method is valid: lexicon sentiment tracks real stars
-
-Reddit has no ground-truth label, so steps 1--4 *infer* the positive/negative
-class from a sentiment lexicon. Is that inference trustworthy? Trustpilot is the
-only source with **both** a lexicon score and a real star rating, so it is where
-we can test it. Applying the identical lexicon class to Trustpilot text and
-comparing it to the star-based class gives
-**`r getm("validity_agreement_pct")`% agreement** (Cohen's
-$\kappa$ = `r getm("validity_kappa")`, n = `r format(as.numeric(getm("validity_n")), big.mark=",")`;
-Figure 1) --- *substantial* agreement by the usual benchmark. The lexicon
-recovers 76% of genuinely negative reviews. This validates using lexicon
-sentiment as the class on Reddit, and it is the methodological bridge that lets
-us read the two corpora together.
-
-```{r fig-validity, out.width="62%", fig.cap="Lexicon-predicted class vs. the 1-5 star ground truth on Trustpilot. High agreement validates the sentiment-based classes used on Reddit."}
-knitr::include_graphics("figures/05_validity.png")
+```{r method-table}
+method_tbl <- data.frame(
+  Step = c("1  Preprocess + classes","2  Word frequency","3  Word clouds",
+           "4  Sentiment","5  Co-occurrence network","6  Topic models (LDA)",
+           "7  Word embeddings","8  Validation","9  Themes + role gradient"),
+  Method = c("Lemmatise + Bing lexicon split","Top-10 words per class",
+             "Commonality + comparison, 1/2-gram","NRC eight emotions",
+             "Bigram network (igraph, ggraph)","LDA, 4 topics per class, 1/2-gram",
+             "GloVe word vectors","Inferred class vs star rating",
+             "Shared theme tagging, both sources"),
+  Why = c("Normalise text; build the two classes","What each class is about",
+          "Shared vs distinctive words","Emotional texture beyond polarity",
+          "Which words travel together","Latent themes per class",
+          "Word meaning and neighbours","Test labels against real stars",
+          "Frustrations and the role of AI"),
+  check.names = FALSE)
+kable(method_tbl, booktabs = TRUE, caption = "The analysis pipeline (one script, analysis.R).")
 ```
 
-## What the two sources agree on: the drivers of frustration
+We standardised on the **Bing opinion lexicon**
+([Hu and Liu, 2004](https://www.cs.uic.edu/~liub/FBS/sentiment-analysis.html))
+for the positive versus negative split because it ships inside the tidytext
+package and needs no download, which keeps the pipeline reproducible on any
+machine. The text mining follows the tidy-text approach of
+[Silge and Robinson (2017)](https://www.tidytextmining.com/).
 
-We tag every comment and review with the same six AI-acceptance themes and
-compute, per source, a **lift** = how much more often a theme appears in
-negative than in positive text (Figure 2). Four themes exceed 1 in *both*
-sources --- they are **cross-validated frustration drivers**, robust across two
-structurally different corpora:
+# Findings
 
-```{r drivers-table}
-if (!is.null(dw)) {
-  d <- dw |> transmute(Theme = theme_label,
-                       `Reddit lift` = round(Reddit, 2),
-                       `Trustpilot lift` = round(Trustpilot, 2),
-                       `Cross-validated` = ifelse(cross_validated, "yes", "rental-only"))
-  kable(d, booktabs = TRUE,
-        caption = "Negativity lift by theme and source (>1 = drives the negative class).")
-}
+## What each class talks about (word frequency and clouds)
+
+After normalising the text (lowercasing, removing punctuation, numbers and stop
+words, then lemmatising to base words), we count the most frequent words in each
+class. Frequency is the fastest read on what each class is about. The negative
+class centres on *airbnb, host, guest, bot, contact, issue*; the positive class
+on *host, guest, automate, message, support* (Figure 1). The word *automate* is
+a top positive term: hosts praise the automation that saves them time, the same
+automation that, when it fails, drives the negative class. The comparison cloud
+(Figure 2) shows the words that most separate the two classes.
+
+```{r fig-top, out.width="92%", fig.cap="Top 10 words per class."}
+knitr::include_graphics("figures/fig_01_top_words.png")
 ```
 
-The cleanest is **accuracy & quality** (errors, "doesn't work", hallucination:
-1.8x on Reddit, 6.9x on Trustpilot) followed by **automation-vs-human** (the
-"no human / bot" signature: pervasive on Reddit, an 8x marker of negative
-reviews on Trustpilot) and **support & resolution**. Two themes ---
-**pricing & fees** and **trust & safety** --- spike only on Trustpilot: they are
-*rental-specific* transaction frustrations, not complaints about the AI itself,
-which is exactly why the two-source design matters (Reddit alone would have
-missed that distinction).
-
-```{r fig-drivers, out.width="92%", fig.cap="Negativity lift by theme and source: four themes clear the dashed line (lift = 1) in both Reddit and Trustpilot."}
-knitr::include_graphics("figures/05_negativity_drivers.png")
+```{r fig-cloud, out.width="52%", fig.cap="Comparison cloud: words coloured by the class they belong to."}
+knitr::include_graphics("figures/fig_03_comparison_cloud.png")
 ```
 
-## The AI-role gradient: acceptance depends on what AI *is*
+## How the classes feel (sentiment)
 
-Acceptance is not a fixed attitude to "AI" --- it tracks the **role** AI plays.
-On Reddit, the share of positive comments is highest where users *chose* an AI
-product and lowest where AI is bolted onto a rental transaction:
+The two classes are split by polarity, so to add information we score the
+**NRC emotion lexicon**
+([Mohammad and Turney, 2013](http://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm)),
+which tags words with eight emotions rather than a single positive or negative
+value. The positive class scores higher on trust, anticipation and joy; the
+negative class higher on sadness, fear, anger and disgust (Figure 3). The gap is
+widest on **trust**, which is the currency of a sharing economy.
+
+```{r fig-nrc, out.width="78%", fig.cap="Average emotion words per comment, by class (NRC lexicon)."}
+knitr::include_graphics("figures/fig_05_sentiment_nrc.png")
+```
+
+## How words connect (co-occurrence network)
+
+Frequency lists lose structure, so we count adjacent word pairs (bigrams) and
+draw the strongest as a network with igraph and ggraph. A network shows which
+words travel together. A clear core runs from *email* to *customer, service,
+support* and *contact*, and a chain runs *agent, human, live, person, real*:
+users asking for a real person (Figure 4). A second cluster, *automate, message,
+guest, host*, captures host-side automation.
+
+```{r fig-net, out.width="93%", fig.cap="Word co-occurrence network of the strongest Reddit bigrams."}
+knitr::include_graphics("figures/fig_06_network.png")
+```
+
+## The latent topics (LDA)
+
+Latent Dirichlet Allocation
+([Blei, Ng and Jordan, 2003](https://www.jmlr.org/papers/v3/blei03a.html))
+groups co-occurring words into topics. We fit four topics per class on unigrams
+and bigrams, which summarises thousands of comments into a few readable subjects.
+For the negative class (Figure 5), Topic 1 is contacting support and bots on
+Airbnb, Topic 2 is Turo car rentals, Topic 3 is hosting, reviews and automated
+booking, and Topic 4 is human versus bot answers. Support contact and automation
+recur across topics.
+
+```{r fig-lda, out.width="92%", fig.cap="LDA topics for the negative class (top terms per topic)."}
+knitr::include_graphics("figures/fig_07_lda_negative.png")
+```
+
+## The meaning behind words (embeddings)
+
+Lexicon and topic methods ignore meaning. **GloVe** word embeddings
+([Pennington, Socher and Manning, 2014](https://nlp.stanford.edu/projects/glove/))
+place words in a vector space learned from the corpus, so we can read the
+nearest neighbours of key terms. The vectors independently rediscover the
+human-versus-automation tension at the heart of the project:
+
+```{r embed-list, results='asis'}
+if (!is.null(nb)) for (i in seq_len(nrow(nb)))
+  cat(sprintf("- **%s**: %s\n", nb$term[i], nb$neighbours[i]))
+```
+
+The neighbours of *human* (agent, real, loop, support, automation) capture users
+asking for a real person, while *bot* sits among support and contact channels.
+
+## Does the inferred class hold up? (validation)
+
+Reddit has no ground-truth label, so the positive or negative class is
+*inferred* from sentiment. Trustpilot has both text and a star rating, so it is
+where we can test that inference: we apply the same lexicon class to Trustpilot
+and compare it to the star-based class. Agreement is
+**`r getm("validity_agreement_pct")`%** (Cohen's
+$\kappa$ = `r getm("validity_kappa")`,
+n = `r format(as.numeric(getm("validity_n")), big.mark=",")`), which is
+substantial by the usual benchmark, and the lexicon recovers 76% of genuinely
+negative reviews (Figure 6). This is the bridge that lets us read the two
+corpora together with confidence.
+
+```{r fig-val, out.width="60%", fig.cap="Inferred class vs. the real star rating on Trustpilot."}
+knitr::include_graphics("figures/fig_08_validity.png")
+```
+
+## The big pattern (the role of AI)
+
+With the method validated, we tag both corpora with the same six themes and
+measure acceptance by AI's role. On Reddit, the positive share is highest where
+users chose the AI product and lowest where AI is a rental add-on:
 
 ```{r role-table}
 if (!is.null(rg)) {
-  r <- rg |> filter(!is.na(pct_positive)) |>
-    transmute(`Context (Reddit)` = recode(platform_category,
-                ai_service = "AI-native (the product)",
-                customer_service = "Customer service (the support desk)",
-                rental = "Rental (a marketplace add-on)"),
-              Comments = n,
-              `% positive` = paste0(round(100 * pct_positive), "%")) |>
-    arrange(desc(`% positive`))
-  kable(r, booktabs = TRUE, caption = "Reddit: positive-class share by AI role.")
+  r <- rg |> transmute(
+    `Context` = recode(platform_category,
+        ai_service = "AI-native (the product)",
+        customer_service = "Customer service (support desk)",
+        rental = "Rental (a marketplace add-on)"),
+    Comments = n, `Positive share` = paste0(round(100 * pct_positive), "%")) |>
+    arrange(desc(`Positive share`))
+  kable(r, booktabs = TRUE, caption = "Reddit: positive-class share by the role of AI.")
 }
 ```
 
-Trustpilot sharpens the point with the **AI / automation penalty**: rental
-reviews that mention AI or automation average **`r getm("ai_star")` stars**
-against **`r getm("non_ai_star")`** for the rest --- a
-**`r getm("ai_penalty")`-star** gap (Figure 3). Same technology, opposite
-reception: welcomed when it *is* the chosen service, penalised when it stands
-between a user and a human transaction.
+Trustpilot makes the same point with hard numbers: rental reviews that mention
+AI or automation average **`r getm("ai_star")` stars** against
+**`r getm("non_ai_star")`** for the rest, a **`r getm("ai_penalty")`-star** gap
+(Figure 7). Same technology, opposite reception, depending on whether the user
+chose it. Figure 8 shows which themes drive the negative class, and that four of
+them do so in both sources at once.
 
-```{r fig-penalty, out.width="55%", fig.cap="The AI/automation penalty on Trustpilot: mentioning AI coincides with a 1.9-star drop."}
-knitr::include_graphics("figures/05_ai_penalty.png")
+```{r fig-penalty, out.width="55%", fig.cap="The AI and automation penalty on Trustpilot."}
+knitr::include_graphics("figures/fig_11_ai_penalty.png")
 ```
 
-# Strategic insights: designing AI agents for acceptance
+```{r fig-drivers, out.width="92%", fig.cap="Themes that drive the negative class. Lift above 1 means more common in negative text."}
+knitr::include_graphics("figures/fig_10_drivers.png")
+```
 
-Read together, the three findings convert into actionable design guidance. Each
-card below pairs a cross-source finding with a design principle and the
-trust/adoption theory it rests on.
+# Key differences between the two classes
 
-```{r design-cards, results='asis'}
-if (!is.null(dc)) {
-  for (i in seq_len(nrow(dc))) {
-    cat(sprintf("**%s** *(%s).* %s\n\n", dc$theme[i], dc$scope[i], dc$finding[i]))
-    cat(sprintf("- *Design principle:* %s\n", dc$design_principle[i]))
-    cat(sprintf("- *Anchored in:* %s\n\n", dc$framework[i]))
-  }
+Across every method, the two classes separate along one axis: **control**.
+
+| Positive class | Negative class |
+|---|---|
+| Praises automation that saves time (automated messages, quick checks) | Hits forced automation and dead ends (*bot, contact, issue*) |
+| Trust, joy, anticipation | Anger, fear, sadness, disgust |
+| Talks about value and convenience | Repeatedly asks for a human (*agent, real, person*) |
+| AI was **chosen** | AI was **imposed** |
+
+Acceptance is high when the user chose the automation and can still reach a
+human. It collapses when automation is imposed and the human exit is missing.
+This is the practical meaning of *algorithm aversion*
+([Dietvorst, Simmons and Massey, 2015](https://doi.org/10.1037/xge0000033)):
+people tolerate AI for tasks they see as mechanical and resist it for tasks they
+see as needing human judgement.
+
+# Strategic recommendations
+
+The evidence converts into a short, ordered list of design rules. They are
+written for a product or marketing team deciding how an AI agent should behave.
+
+```{r recs, results='asis'}
+if (!is.null(rec)) {
+  rec <- rec |> arrange(priority)
+  for (i in seq_len(nrow(rec)))
+    cat(sprintf("%d. **%s.** %s\n\n", rec$priority[i],
+                rec$recommendation[i], rec$evidence[i]))
 }
 ```
 
-**The headline recommendation.** Treat the human hand-off as a feature, not a
-failure: the single most consistent signal across both sources is that *forced*
-automation --- being trapped with a bot and unable to reach a person ---
-destroys acceptance, while *chosen* automation earns it. AI agents should be
-**transparent** (labelled as AI, honest about limits), **escapable** (one-click
-human hand-off), and **role-matched** (a personable companion for AI-native
-products; an efficient, near-invisible helper for transactional add-ons). This
-mirrors *task-dependent* algorithm aversion (Castelo et al. 2019): users accept
-AI for objective, mechanical tasks and resist it for tasks they see as needing
-human judgement.
+The first rule matters most: across both data sources, the strongest single
+signal is that being trapped with a bot, unable to reach a person, destroys
+acceptance, while automation the user opted into earns it. An AI agent should be
+**transparent** (labelled as AI, honest about limits), **escapable** (a human is
+one click away) and **role-matched** (personable when it is the product,
+efficient and unobtrusive when it is a transactional add-on).
 
-# Progress against the assignment brief
+# Methods, tools and limitations
 
-Each task is tagged **Done**, **In progress**, or **To do**.
+The analysis is written in R. Preprocessing uses tidytext and textstem;
+sentiment uses the Bing and NRC lexicons (via tidytext and syuzhet); the network
+uses igraph and ggraph; topic models use topicmodels; embeddings use text2vec.
+The report is fully reproducible: `analysis.R` regenerates every figure and
+table that appears here.
 
-- **Dataset & preprocessing --- Done.** Two self-scraped corpora, no X/Twitter:
-  Reddit (`r format(rd_n, big.mark=",")` comments, 3 contexts) and Trustpilot
-  (`r format(tp_n, big.mark=",")` star-labelled reviews + AI flag). Cleaning,
-  lemmatisation, tokenisation and the two-class split are implemented in
-  `steps 1 to 4.R`.
-- **Exploratory (word frequency, clouds) --- Done.** Top-10 words per class
-  (bar charts) and commonality / comparison clouds, 1- and 2-gram
-  (`steps 1 to 4.R`, step 2).
-- **Structural & sentiment (networks, sentiment) --- Done.** Bigram
-  co-occurrence network and NRC emotion comparison across the two classes
-  (step 3).
-- **Advanced modelling (LDA, embeddings) --- Done.** 3--5 LDA topics per class on
-  1- and 2-gram tokens, plus GloVe neighbours of *trust* / *bot* / *host*
-  (step 4).
-- **Integration --- Done.** Validity test, shared-theme analysis and the
-  AI-role gradient fuse the networks, sentiments and topics into one story and
-  validate it against Trustpilot stars (`05_integration.R`; Section 4).
-- **Strategic insights --- Done.** Six evidence-backed design cards and a
-  headline recommendation (Section 5).
-- **Literature --- Done.** Methodology and interpretation anchored in the
-  trust/adoption frameworks below (Section 8).
-- **To do.** Optional: extend Trustpilot to AI-native platforms
-  (character.ai, replika.com, openai.com) to populate the Trustpilot
-  `ai_service` cell; final presentation polish.
+A few limits are worth stating plainly:
 
-# Limitations
+- Trustpilot reviews skew positive, which is typical of opt-in review sites.
+- The Bing lexicon is binary, so the inferred class is a coarse instrument; the
+  `r getm("validity_agreement_pct")`% agreement with stars shows it is good
+  enough for classification, but exact magnitudes should be read as directional.
+- The Trustpilot side covers rentals only, so the AI-native end of the role
+  gradient rests on Reddit. The rental contrast, the core of the sharing economy,
+  is the part validated across both sources.
+- Trust appears mostly implicitly (bot or human, automated, algorithm), so we
+  read it through themes and emotion rather than the literal word. English only.
 
-- Trustpilot skews positive (opt-in bias) --- we down-sample for balanced
-  classification; the validity test already uses the natural distribution.
-- The Reddit `rental` pull includes a broad `app` query that adds some general
-  app-experience noise; every row keeps a `source_query` column for precise
-  filtering.
-- The Trustpilot `ai_service` context is not yet populated (AI-native platforms
-  still to scrape), so the AI-role gradient uses Reddit for the AI-native cell.
-- "Trust" is mostly *implicit* (bot/human, automated, algorithm language),
-  measured via themes and sentiment, not keyword counts. English-only.
-- The portable Bing lexicon (sign-of-sum) is a coarser instrument than AFINN's
-  graded scores; the `r getm("validity_agreement_pct")`% star agreement shows it
-  is good enough for classing, but magnitudes should be read as directional.
-- Reddit data is archival (Arctic Shift); the live anti-bot wall prevents fresh
-  anonymous scraping.
-
-# Literature
-
-Our methods and interpretations rest on established work in technology
-acceptance, trust, and human--AI interaction.
+# References
 
 \footnotesize
 
-Bhattacherjee, A. (2001). Understanding information systems continuance: An
-expectation-confirmation model. *MIS Quarterly*, 25(3), 351--370.
-
-Castelo, N., Bos, M. W., & Lehmann, D. R. (2019). Task-dependent algorithm
-aversion. *Journal of Marketing Research*, 56(5), 809--825.
+Blei, D. M., Ng, A. Y., and Jordan, M. I. (2003). Latent Dirichlet Allocation.
+*Journal of Machine Learning Research*, 3, 993 to 1022.
+<https://www.jmlr.org/papers/v3/blei03a.html>
 
 Davis, F. D. (1989). Perceived usefulness, perceived ease of use, and user
-acceptance of information technology. *MIS Quarterly*, 13(3), 319--340.
+acceptance of information technology. *MIS Quarterly*, 13(3), 319 to 340.
 
-Dietvorst, B. J., Simmons, J. P., & Massey, C. (2015). Algorithm aversion:
-People erroneously avoid algorithms after seeing them err. *Journal of
-Experimental Psychology: General*, 144(1), 114--126.
+Dietvorst, B. J., Simmons, J. P., and Massey, C. (2015). Algorithm aversion.
+*Journal of Experimental Psychology: General*, 144(1), 114 to 126.
+<https://doi.org/10.1037/xge0000033>
 
-Longoni, C., Bonezzi, A., & Morewedge, C. K. (2019). Resistance to medical
-artificial intelligence. *Journal of Consumer Research*, 46(4), 629--650.
+Hu, M., and Liu, B. (2004). Mining and summarizing customer reviews.
+*Proceedings of ACM SIGKDD*.
+<https://www.cs.uic.edu/~liub/FBS/sentiment-analysis.html>
 
-Mayer, R. C., Davis, J. H., & Schoorman, F. D. (1995). An integrative model of
-organizational trust. *Academy of Management Review*, 20(3), 709--734.
+Mohammad, S. M., and Turney, P. D. (2013). Crowdsourcing a word-emotion
+association lexicon. *Computational Intelligence*, 29(3), 436 to 465.
+<http://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm>
 
-McKnight, D. H., Choudhury, V., & Kacmar, C. (2002). Developing and validating
-trust measures for e-commerce. *Information Systems Research*, 13(3), 334--359.
+Pennington, J., Socher, R., and Manning, C. D. (2014). GloVe: Global vectors for
+word representation. *Proceedings of EMNLP*.
+<https://nlp.stanford.edu/projects/glove/>
 
-Nass, C., & Moon, Y. (2000). Machines and mindlessness: Social responses to
-computers. *Journal of Social Issues*, 56(1), 81--103.
-
-Silge, J., & Robinson, D. (2017). *Text Mining with R: A Tidy Approach.*
-O'Reilly Media.
-
-Venkatesh, V., Morris, M. G., Davis, G. B., & Davis, F. D. (2003). User
-acceptance of information technology: Toward a unified view. *MIS Quarterly*,
-27(3), 425--478.
+Silge, J., and Robinson, D. (2017). *Text Mining with R: A Tidy Approach.*
+O'Reilly Media. <https://www.tidytextmining.com/>
 
 \normalsize
 
 ---
 
 \footnotesize
-Repository: <https://github.com/tyomachkaa/ai-acceptance-sharing-economy> ·
+Repository: <https://github.com/tyomachkaa/ai-acceptance-sharing-economy> .
 Online Content Analysis, WU Vienna, 2026.

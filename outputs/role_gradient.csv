@@ -1,5 +1,4 @@
-"platform_category","n","source","metric","pct_positive","mean_rating"
-"ai_service",1266,"Reddit (sentiment share)",0.587677725118483,0.587677725118483,NA
-"customer_service",397,"Reddit (sentiment share)",0.586901763224181,0.586901763224181,NA
-"rental",1290,"Reddit (sentiment share)",0.506201550387597,0.506201550387597,NA
-"rental",3912,"Trustpilot (mean stars)",0.836298568507156,NA,4.18149284253578
+"platform_category","n","pct_positive"
+"ai_service",1279,0.578577013291634
+"customer_service",401,0.56359102244389
+"rental",1321,0.494322482967449

@@ -11,8 +11,8 @@ Short internal status note. Full overview for outsiders: [`README.md`](README.md
 
 - **Focus:** *AI acceptance across service platforms* — how people accept (or reject) AI agents, and how that changes with AI's **role**: the product itself (ChatGPT, Claude, Replika), a marketplace add-on (Turo, Airbnb), or the support desk (customer-service bots).
 - **Data collection: done.** Reddit (discussion baseline) + Trustpilot (star-labelled verification), both on-topic for AI experiences.
-- **Analysis: done through step 5.** Steps 1–4 (`steps 1 to 4.R`) cover preprocessing, exploratory, sentiment/network, LDA + GloVe on Reddit; **step 5** (`05_integration.R`) fuses in Trustpilot → `outputs/report.pdf`.
-- **Headline findings:** (1) the Reddit sentiment classes are **validated against real Trustpilot stars — 93.4% agreement, κ = 0.76**; (2) four **cross-source frustration drivers** (automation-vs-human, accuracy, support, anthropomorphism); (3) the **AI-role gradient** — AI is accepted when it *is* the product (59% positive on Reddit) but penalised as a rental add-on (**2.32★ vs 4.21★**, a 1.89★ gap).
+- **Analysis: done.** One script, `analysis.R` (steps 1-10), mines Reddit (preprocess, clouds, NRC, network, LDA, GloVe) and brings in Trustpilot for validation and the AI-role gradient. The report (`report.Rmd` -> `outputs/report.pdf`) is a full methods walkthrough and the presentation base.
+- **Headline findings:** (1) the Reddit sentiment classes are **validated against real Trustpilot stars: 93.4% agreement, κ = 0.76**; (2) four **cross-source frustration drivers** (automation-vs-human, accuracy, support, anthropomorphism); (3) the **AI-role gradient**: AI is accepted when it *is* the product (58% positive on Reddit) but penalised as a rental add-on (**2.32★ vs 4.21★**, a 1.89★ gap).
 
 ---
 
@@ -48,11 +48,10 @@ On-topic check: customer_service ~95%, rental ~85% AI-keyword; ai_service on-top
 | Script | Purpose |
 |---|---|
 | `01_fetch_reddit_arcticshift.R` | Reddit baseline from Arctic Shift (base R + jsonlite; retry/backoff built in) |
-| `02_merge_trustpilot.R` | merge Apify Trustpilot CSVs → `trustpilot_reviews.csv` |
+| `02_merge_trustpilot.R` | merge Apify Trustpilot CSVs -> `trustpilot_reviews.csv` |
 | `06_ai_acceptance.R` | flag AI/automation reviews + categorise platforms |
-| `steps 1 to 4.R` | **Steps 1–4** — Reddit text analysis: preprocess, top-words, clouds, co-occurrence network, NRC, LDA (uni+bigram), GloVe |
-| `05_integration.R` | **Step 5** — Reddit×Trustpilot integration: convergent validity, shared themes, AI-role gradient, design cards → `outputs/*.csv` + `figures/05_*.png` |
-| `report.Rmd` | working report — reads all CSVs/figures live → `outputs/report.pdf` |
+| `analysis.R` | **THE analysis (steps 1-10)** in one script: preprocess, top-words, clouds, NRC sentiment, co-occurrence network, LDA, GloVe, validation vs stars, AI-role gradient, recommendations -> `figures/fig_*.png` + `outputs/*.csv` |
+| `report.Rmd` | final report, reads figures + CSVs live -> `outputs/report.pdf` |
 
 ---
 
@@ -66,13 +65,13 @@ On-topic check: customer_service ~95%, rental ~85% AI-keyword; ai_service on-top
 
 ## Status against the brief
 
-**Done:** 1. Preprocessing · 2. Exploratory (top-words, clouds) · 3. Structural & sentiment (network, NRC) · 4. Modelling (LDA, GloVe) — all in `steps 1 to 4.R`. · 5. **Integration / Strategic insights / Literature** — `05_integration.R` + the synthesis sections of `report.Rmd`.
+**Done (all in `analysis.R`):** 1. Preprocessing. 2. Exploratory (top-words, clouds). 3. Sentiment (NRC). 4. Co-occurrence network. 5. LDA topics. 6. GloVe embeddings. 7. Validation vs Trustpilot stars. 8. AI-role gradient. 9. Strategic recommendations. The report (`report.Rmd`) walks through each method, explains why it was chosen, links references, and ends in the recommendations.
 
 **Remaining (optional / presentation):**
-- Build the slide deck from `outputs/report.pdf` + `figures/05_*.png` (the four step-5 figures are presentation-ready).
-- (Optional) Extend Trustpilot to AI-native platforms (character.ai, replika.com, openai.com) to populate the Trustpilot `ai_service` cell, then re-run `02` + `06` + `05_integration.R`.
+- Build the slide deck from `outputs/report.pdf` + the 11 `figures/fig_*.png` (each maps to a slide).
+- (Optional) Extend Trustpilot to AI-native platforms (character.ai, replika.com, openai.com) to populate the Trustpilot `ai_service` cell, then re-run `02` + `06` + `analysis.R`.
 
-**Note on lexicons:** `steps 1 to 4.R` uses AFINN (`textdata`) + NRC (`syuzhet`); `05_integration.R` deliberately uses the **bundled Bing lexicon** so it runs with no downloads — its 93.4% agreement with stars confirms the two-class split is equivalent.
+**Note on lexicons:** `analysis.R` uses the **bundled Bing** lexicon for the positive/negative split and **NRC** (syuzhet) for emotions, so it runs with no downloads. Bing's 93.4% agreement with Trustpilot stars confirms the two-class split is sound.
 
 ---
 
@@ -85,14 +84,21 @@ cd ai-acceptance-sharing-economy
 
 ```r
 install.packages(c(
-  "dplyr","tidyr","stringr","purrr","tidytext","ggplot2","lubridate","scales",
-  "wordcloud","RColorBrewer","rmarkdown","knitr",
-  "quanteda","textstem","seededlda","topicmodels","syuzhet","widyr","ggraph","igraph","text2vec"
+  "dplyr","tidyr","stringr","scales","rmarkdown","knitr","jsonlite",
+  "tidytext","textstem","wordcloud","RColorBrewer","reshape2",
+  "igraph","ggraph","topicmodels","slam","text2vec","syuzhet","ggplot2"
 ))
 ```
 
-Everything is R now. Re-fetch Reddit with `source("01_fetch_reddit_arcticshift.R")`
-(needs only `jsonlite`), and build the report with `rmarkdown::render("report.Rmd")`.
+Everything is R. Run the analysis, then knit:
+
+```r
+source("analysis.R")              # figures/fig_*.png + outputs/*.csv  (~20s)
+rmarkdown::render("report.Rmd")   # outputs/report.pdf
+```
+
+The Reddit collector (`01_...R`) needs only `jsonlite`. `analysis.R` uses the
+bundled Bing + NRC lexicons, so no lexicon downloads are required.
 
 ---
 
