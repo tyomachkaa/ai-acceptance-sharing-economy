@@ -33,17 +33,21 @@ Read the working report: [outputs/report.pdf](outputs/report.pdf).
 ├── 02_merge_trustpilot.R                <- combine Apify Trustpilot CSVs → trustpilot_reviews.csv
 ├── 06_ai_acceptance.R                   <- flag AI/automation reviews + tag platform_category
 │
-├── report.Rmd                           <- working report (auto-reads the CSVs)
+├── steps 1 to 4.R                       <- STEPS 1–4: Reddit text analysis (clouds, network, LDA, GloVe)
+├── 05_integration.R                     <- STEP 5: Reddit×Trustpilot integration → outputs/*.csv + figures/05_*.png
+├── report.Rmd                           <- working report (auto-reads the CSVs + figures)
 │
 ├── data/
-│   ├── reddit_baseline.csv              <- USE THIS — 4,250 on-topic comments, 3 categories
+│   ├── reddit_baseline.csv              <- USE THIS — 4,269 on-topic comments, 3 categories
 │   ├── trustpilot_reviews.csv           <- merged Trustpilot reviews (3,912 rows)
 │   ├── trustpilot_flagged.csv           <- + platform_category + ai_related flag
 │   ├── ai_experience.csv                <- the 60 AI/automation reviews (2.32★)
 │   └── trustpilot_raw/                  <- per-platform Apify CSVs (inputs)
 │
+├── figures/                             <- 05_validity, 05_theme_prevalence, 05_negativity_drivers, 05_ai_penalty
 └── outputs/
-    └── report.pdf                       <- knitted working report
+    ├── report.pdf                       <- knitted working report
+    └── *.csv                            <- step-5 tables (design_cards, drivers, metrics, …)
 ```
 
 ---
@@ -134,17 +138,17 @@ rmarkdown::render("report.Rmd")   # → report.pdf (copy into outputs/)
 
 ---
 
-## Planned analysis (next steps)
+## Analysis pipeline (done)
 
-| Step | What | Tools |
-|---|---|---|
-| 1 | Preprocessing — lemmatise, 1- and 2-grams | `tidytext`, `quanteda` |
-| 2 | Word frequency + comparison/commonality clouds | `tidytext`, `wordcloud` |
-| 3 | Word co-occurrence networks | `widyr`, `ggraph` |
-| 4 | Sentiment (AFINN + NRC 8-emotion) — validated against Trustpilot stars | `syuzhet`, `tidytext` |
-| 5 | Topic modelling — 3-5 LDA topics per class, 1g + 2g, seeded | `topicmodels`, `seededlda` |
-| 6 | Word embeddings — GloVe via `text2vec`, neighbours of *trust* / *AI* / *host* | `text2vec` |
-| 7 | Synthesis — map topics to trust frameworks (Mayer 1995; TAM); produce **AI-agent Design Cards** | — |
+| Step | What | Where | Status |
+|---|---|---|---|
+| 1 | Preprocessing — clean, lemmatise, two-class split, 1- & 2-grams | `steps 1 to 4.R` | done |
+| 2 | Word frequency (top-10/class) + commonality/comparison clouds | `steps 1 to 4.R` | done |
+| 3 | Co-occurrence network + NRC sentiment comparison | `steps 1 to 4.R` | done |
+| 4 | LDA topics (1g+2g, per class) + GloVe embeddings | `steps 1 to 4.R` | done |
+| 5 | **Integration** (Reddit×Trustpilot validity, shared themes, AI-role gradient), **Strategic insights** (design cards), **Literature** | `05_integration.R` + `report.Rmd` | done |
+
+**Step-5 headline:** the Reddit sentiment classes agree with real Trustpilot stars **93.4% (κ = 0.76)**; four cross-source frustration drivers; AI is welcomed as the product but penalised as a rental add-on (**2.32★ vs 4.21★**). See [`outputs/report.pdf`](outputs/report.pdf).
 
 ---
 

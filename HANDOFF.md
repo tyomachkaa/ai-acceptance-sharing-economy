@@ -1,6 +1,6 @@
 # Project Handoff — Status & Next Steps
 
-**Last updated:** May 31, 2026
+**Last updated:** June 8, 2026
 **Repo:** https://github.com/tyomachkaa/ai-acceptance-sharing-economy
 
 Short internal status note. Full overview for outsiders: [`README.md`](README.md) and [`outputs/report.pdf`](outputs/report.pdf).
@@ -11,8 +11,8 @@ Short internal status note. Full overview for outsiders: [`README.md`](README.md
 
 - **Focus:** *AI acceptance across service platforms* — how people accept (or reject) AI agents, and how that changes with AI's **role**: the product itself (ChatGPT, Claude, Replika), a marketplace add-on (Turo, Airbnb), or the support desk (customer-service bots).
 - **Data collection: done.** Reddit (discussion baseline) + Trustpilot (star-labelled verification), both on-topic for AI experiences.
-- **Analysis: not started** — data is ready for preprocessing → frequency → sentiment → LDA.
-- **Headline finding so far:** on rental platforms, the 60 reviews mentioning AI/automation average **2.32★ vs 4.21★** overall — automation correlates sharply with frustration.
+- **Analysis: done through step 5.** Steps 1–4 (`steps 1 to 4.R`) cover preprocessing, exploratory, sentiment/network, LDA + GloVe on Reddit; **step 5** (`05_integration.R`) fuses in Trustpilot → `outputs/report.pdf`.
+- **Headline findings:** (1) the Reddit sentiment classes are **validated against real Trustpilot stars — 93.4% agreement, κ = 0.76**; (2) four **cross-source frustration drivers** (automation-vs-human, accuracy, support, anthropomorphism); (3) the **AI-role gradient** — AI is accepted when it *is* the product (59% positive on Reddit) but penalised as a rental add-on (**2.32★ vs 4.21★**, a 1.89★ gap).
 
 ---
 
@@ -50,7 +50,9 @@ On-topic check: customer_service ~95%, rental ~85% AI-keyword; ai_service on-top
 | `01_fetch_reddit_arcticshift.R` | Reddit baseline from Arctic Shift (base R + jsonlite; retry/backoff built in) |
 | `02_merge_trustpilot.R` | merge Apify Trustpilot CSVs → `trustpilot_reviews.csv` |
 | `06_ai_acceptance.R` | flag AI/automation reviews + categorise platforms |
-| `report.Rmd` | working report — reads all CSVs live → `outputs/report.pdf` |
+| `steps 1 to 4.R` | **Steps 1–4** — Reddit text analysis: preprocess, top-words, clouds, co-occurrence network, NRC, LDA (uni+bigram), GloVe |
+| `05_integration.R` | **Step 5** — Reddit×Trustpilot integration: convergent validity, shared themes, AI-role gradient, design cards → `outputs/*.csv` + `figures/05_*.png` |
+| `report.Rmd` | working report — reads all CSVs/figures live → `outputs/report.pdf` |
 
 ---
 
@@ -62,16 +64,15 @@ On-topic check: customer_service ~95%, rental ~85% AI-keyword; ai_service on-top
 
 ---
 
-## Next steps (no owners — assign within the team)
+## Status against the brief
 
-1. **Preprocessing** (`07_preprocess.R`) — lowercase, strip punctuation/numbers/stopwords, lemmatise, 1- and 2-gram tokens for both corpora.
-2. **Exploratory** — top-10 words per class (bar charts); comparison + commonality word clouds (uni/bi-gram); co-occurrence networks (`widyr` + `ggraph`).
-3. **Sentiment** — AFINN + NRC on both corpora, both classes on one graph, validated against Trustpilot stars.
-4. **Topic modelling** — 3–5 LDA topics per class, 1g + 2g, seeded; `text2vec` cross-check.
-5. **Embeddings** — GloVe/Word2Vec neighbours of *trust* / *AI* / *agent* / *host*.
-6. **Synthesis** — map to trust frameworks (Mayer 1995; Davis TAM; UTAUT) → **AI-agent design cards**.
+**Done:** 1. Preprocessing · 2. Exploratory (top-words, clouds) · 3. Structural & sentiment (network, NRC) · 4. Modelling (LDA, GloVe) — all in `steps 1 to 4.R`. · 5. **Integration / Strategic insights / Literature** — `05_integration.R` + the synthesis sections of `report.Rmd`.
 
-Suggested packages: `tidytext`, `quanteda`, `textstem`, `seededlda`, `topicmodels`, `syuzhet`, `widyr`, `ggraph`, `igraph`, `text2vec`.
+**Remaining (optional / presentation):**
+- Build the slide deck from `outputs/report.pdf` + `figures/05_*.png` (the four step-5 figures are presentation-ready).
+- (Optional) Extend Trustpilot to AI-native platforms (character.ai, replika.com, openai.com) to populate the Trustpilot `ai_service` cell, then re-run `02` + `06` + `05_integration.R`.
+
+**Note on lexicons:** `steps 1 to 4.R` uses AFINN (`textdata`) + NRC (`syuzhet`); `05_integration.R` deliberately uses the **bundled Bing lexicon** so it runs with no downloads — its 93.4% agreement with stars confirms the two-class split is equivalent.
 
 ---
 

@@ -1,0 +1,13 @@
+"source","theme","theme_label","neg_prev","pos_prev","lift"
+"Reddit","accuracy_quality","Accuracy & quality",0.154195011337868,0.0871165644171779,1.76998498930088
+"Reddit","anthro_companion","Anthropomorphism / companionship",0.229780801209373,0.154601226993865,1.4862805792511
+"Reddit","automation_vs_human","Automation vs. human",0.636432350718065,0.603680981595092,1.05425277608785
+"Reddit","pricing_fees","Pricing & fees",0.167044595616024,0.23558282208589,0.709069507432603
+"Reddit","support_resolution","Support & resolution",0.390778533635676,0.334355828220859,1.16875047674523
+"Reddit","trust_safety","Trust & safety",0.0929705215419501,0.107975460122699,0.861033807462379
+"Trustpilot","accuracy_quality","Accuracy & quality",0.174220963172805,0.0254320182588849,6.85045761603835
+"Trustpilot","anthro_companion","Anthropomorphism / companionship",0.0963172804532578,0.0665145092924682,1.4480642115203
+"Trustpilot","automation_vs_human","Automation vs. human",0.0368271954674221,0.0045647212259537,8.0677863213274
+"Trustpilot","pricing_fees","Pricing & fees",0.562322946175637,0.103684382132377,5.42341030163736
+"Trustpilot","support_resolution","Support & resolution",0.524079320113314,0.295402673622432,1.77411840484275
+"Trustpilot","trust_safety","Trust & safety",0.342776203966006,0.0694489729377242,4.9356554815199
