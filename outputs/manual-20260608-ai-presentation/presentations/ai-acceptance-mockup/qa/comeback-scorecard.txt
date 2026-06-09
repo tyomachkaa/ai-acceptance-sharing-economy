@@ -1,0 +1,36 @@
+primary deck-profile: gtm-growth
+profile gate: pass
+
+rubric:
+- story: 5
+- specificity: 5
+- rhythm: 4
+- whitespace: 4
+- chart clarity: 4
+- typography: 4
+- restraint: 5
+- precision: 5
+- coherence: 5
+- reference delta: n/a
+
+score: 42 / 45
+
+package checks:
+- PPTX exported successfully.
+- 12 slide XML files present in the package.
+- 12 rendered preview PNGs generated.
+- Contact sheet inspected at thumbnail size.
+
+render checks:
+- Cover, network, and close slides inspected full size.
+- Contact sheet shows distinct macro layouts and no visible collisions.
+- Final title/subtitle spacing issues fixed after first export.
+
+layout checker:
+- 0 errors.
+- 14 warnings remain, mostly conservative tight-text warnings on claim titles and short callouts that render acceptably in preview.
+
+residual gaps:
+- Network chart labels are readable but small; for a final polished deck, regenerate that chart with larger labels.
+- Some charts are embedded figure images rather than fully editable chart objects because the project already had finalized R visuals.
+

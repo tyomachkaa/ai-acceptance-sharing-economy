@@ -1,0 +1,9 @@
+task mode: create
+primary deck-profile: gtm-growth
+secondary gates: academic analytics presentation, sharing-economy assignment fit
+required proof objects: data-source map, method pipeline, top-word comparison, sentiment chart, network figure, LDA comparison, embeddings table, validation matrix, role-gradient proof, strategic recommendations
+source requirements: use local report outputs and figures only; no fabricated metrics
+brand authenticity constraints: no official platform logos or app icons; express context through neutral typography, colors, and labels
+profile-specific QA gates: connect acceptance drivers to marketing/design action; include quantified proof and caveats
+known missing inputs: no instructor-provided slide template; no presentation duration specified
+

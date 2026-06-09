@@ -11,8 +11,8 @@ Short internal status note. Full overview for outsiders: [`README.md`](README.md
 
 - **Focus:** *AI acceptance across service platforms* — how people accept (or reject) AI agents, and how that changes with AI's **role**: the product itself (ChatGPT, Claude, Replika), a marketplace add-on (Turo, Airbnb), or the support desk (customer-service bots).
 - **Data collection: done.** Reddit (discussion baseline) + Trustpilot (star-labelled verification), both on-topic for AI experiences.
-- **Analysis: done.** One script, `analysis.R` (steps 1-10), mines Reddit (preprocess, clouds, NRC, network, LDA, GloVe) and brings in Trustpilot for validation and the AI-role gradient. The report (`report.Rmd` -> `outputs/report.pdf`) is a full methods walkthrough and the presentation base.
-- **Headline findings:** (1) the Reddit sentiment classes are **validated against real Trustpilot stars: 93.4% agreement, κ = 0.76**; (2) four **cross-source frustration drivers** (automation-vs-human, accuracy, support, anthropomorphism); (3) the **AI-role gradient**: AI is accepted when it *is* the product (58% positive on Reddit) but penalised as a rental add-on (**2.32★ vs 4.21★**, a 1.89★ gap).
+- **Analysis: done.** `analysis.R` is the colleague's original steps 1-4 (verbatim, AFINN) plus our steps 5-10 (validation, role gradient, recommendations); his standalone `steps 1 to 4.R` is kept for credit. The report (`report.Rmd` -> `outputs/report.pdf`) is a full methods walkthrough and the presentation base.
+- **Headline findings:** (1) the Reddit (AFINN) classes are **validated against real Trustpilot stars: 92.8% agreement, κ = 0.74**; (2) **accuracy and trust** drive negativity in both sources, while **automation leans positive on Reddit (hosts/builders) but is the top negative marker on Trustpilot (end customers)**; (3) AI is penalised as a rental add-on (**2.32★ vs 4.21★**, a 1.89★ gap).
 
 ---
 
@@ -50,7 +50,8 @@ On-topic check: customer_service ~95%, rental ~85% AI-keyword; ai_service on-top
 | `01_fetch_reddit_arcticshift.R` | Reddit baseline from Arctic Shift (base R + jsonlite; retry/backoff built in) |
 | `02_merge_trustpilot.R` | merge Apify Trustpilot CSVs -> `trustpilot_reviews.csv` |
 | `06_ai_acceptance.R` | flag AI/automation reviews + categorise platforms |
-| `analysis.R` | **THE analysis (steps 1-10)** in one script: preprocess, top-words, clouds, NRC sentiment, co-occurrence network, LDA, GloVe, validation vs stars, AI-role gradient, recommendations -> `figures/fig_*.png` + `outputs/*.csv` |
+| `steps 1 to 4.R` | colleague's ORIGINAL steps 1-4 (his credit, untouched) |
+| `analysis.R` | **MERGED**: his steps 1-4 verbatim (Part A) + our steps 5-10 (Part B): save his figures, then validation vs stars, AI-role gradient, recommendations -> `figures/fig_*.png` + `outputs/*.csv` |
 | `report.Rmd` | final report, reads figures + CSVs live -> `outputs/report.pdf` |
 
 ---
@@ -71,7 +72,7 @@ On-topic check: customer_service ~95%, rental ~85% AI-keyword; ai_service on-top
 - Build the slide deck from `outputs/report.pdf` + the 11 `figures/fig_*.png` (each maps to a slide).
 - (Optional) Extend Trustpilot to AI-native platforms (character.ai, replika.com, openai.com) to populate the Trustpilot `ai_service` cell, then re-run `02` + `06` + `analysis.R`.
 
-**Note on lexicons:** `analysis.R` uses the **bundled Bing** lexicon for the positive/negative split and **NRC** (syuzhet) for emotions, so it runs with no downloads. Bing's 93.4% agreement with Trustpilot stars confirms the two-class split is sound.
+**Note on lexicons:** the colleague's code uses the **AFINN** lexicon (via `textdata`) for the positive/negative split and **NRC** (via `syuzhet`) for emotions. AFINN downloads once on first use (accept the RStudio prompt), then runs from cache. AFINN's 92.8% agreement with Trustpilot stars confirms the two-class split is sound.
 
 ---
 
@@ -84,8 +85,8 @@ cd ai-acceptance-sharing-economy
 
 ```r
 install.packages(c(
-  "dplyr","tidyr","stringr","scales","rmarkdown","knitr","jsonlite",
-  "tidytext","textstem","wordcloud","RColorBrewer","reshape2",
+  "dplyr","tidyr","stringr","readr","scales","rmarkdown","knitr","jsonlite",
+  "tidytext","textdata","textstem","tm","wordcloud","RColorBrewer","reshape2",
   "igraph","ggraph","topicmodels","slam","text2vec","syuzhet","ggplot2"
 ))
 ```
@@ -93,12 +94,12 @@ install.packages(c(
 Everything is R. Run the analysis, then knit:
 
 ```r
-source("analysis.R")              # figures/fig_*.png + outputs/*.csv  (~20s)
+source("analysis.R")              # figures/fig_*.png + outputs/*.csv  (~30s)
 rmarkdown::render("report.Rmd")   # outputs/report.pdf
 ```
 
 The Reddit collector (`01_...R`) needs only `jsonlite`. `analysis.R` uses the
-bundled Bing + NRC lexicons, so no lexicon downloads are required.
+AFINN lexicon (via textdata): accept the one-time download on first run.
 
 ---
 

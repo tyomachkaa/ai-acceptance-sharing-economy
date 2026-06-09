@@ -1,0 +1,18 @@
+slide size: 1280x720
+background system: warm paper (#F7F3EA) for evidence slides; deep ink (#182126) for cover and close
+typography: Aptos Display for claims; Aptos for body and labels
+palette:
+- deep ink #182126 for primary text and dark slides
+- paper #F7F3EA for background
+- orange #F26A38 for negative/friction/action
+- green #3FA66B for positive/acceptance
+- blue #2F7EB6 for evidence/validation
+- muted line #D7D1C4 and muted text #5C625F
+chart grammar: direct labels, large values, minimal axes, no heavy legends
+diagram grammar: horizontal flows with explicit roles; no platform logos
+container grammar: use hairline boxes only for data grouping; avoid repeated card grids
+footer grammar: small project label left, page marker right
+kicker grammar: all-caps 13px, deep ink on paper or paper on dark, orange marker line
+layout families: cover metric rail, assignment map, two-source data map, method timeline, figure plus insight rail, matrix/table, split proof, final recommendation stack
+banned motifs: decorative blobs, unofficial logos, generic SaaS cards, stock images, dense prose walls
+

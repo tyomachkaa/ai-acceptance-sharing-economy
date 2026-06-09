@@ -33,8 +33,9 @@ Read the working report: [outputs/report.pdf](outputs/report.pdf).
 ├── 02_merge_trustpilot.R                <- combine Apify Trustpilot CSVs -> trustpilot_reviews.csv
 ├── 06_ai_acceptance.R                   <- flag AI/automation reviews + tag platform_category
 │
-├── analysis.R                           <- THE analysis (steps 1-10): preprocess, clouds, network,
-│                                           sentiment, LDA, GloVe, validation, role gradient, recommendations
+├── steps 1 to 4.R                       <- colleague's ORIGINAL steps 1-4 (his credit, untouched)
+├── analysis.R                           <- MERGED project script: his steps 1-4 verbatim (Part A)
+│                                           + our steps 5-10 (Part B): validation, role gradient, recommendations
 ├── report.Rmd                           <- final report (auto-reads outputs/ + figures/)
 │
 ├── data/
@@ -94,15 +95,15 @@ Online services increasingly put AI between the user and the thing they came for
 ```r
 install.packages(c(
   # core + reporting
-  "dplyr", "tidyr", "stringr", "scales", "rmarkdown", "knitr", "jsonlite",
+  "dplyr", "tidyr", "stringr", "readr", "scales", "rmarkdown", "knitr", "jsonlite",
   # text mining (analysis.R)
-  "tidytext", "textstem", "wordcloud", "RColorBrewer", "reshape2",
+  "tidytext", "textdata", "textstem", "tm", "wordcloud", "RColorBrewer", "reshape2",
   "igraph", "ggraph", "topicmodels", "slam", "text2vec", "syuzhet",
   "ggplot2"
 ))
 ```
 
-The Reddit collector (`01_...R`) needs only `jsonlite` (reads the Arctic Shift API directly, no `httr`/`curl`). `analysis.R` uses the bundled **Bing** and **NRC** lexicons, so it runs with no downloads.
+The Reddit collector (`01_...R`) needs only `jsonlite` (reads the Arctic Shift API directly, no `httr`/`curl`). `analysis.R` uses the **AFINN** lexicon (via `textdata`) for the positive/negative split and **NRC** (via `syuzhet`) for emotions. AFINN downloads once on first use: in RStudio accept the prompt; from a script it is then read from cache.
 
 ### 2. Re-fetch the Reddit baseline (optional — data is checked in)
 
@@ -145,11 +146,11 @@ reads its figures and tables, so run `analysis.R` first.
 
 ---
 
-## Analysis pipeline (one script: `analysis.R`)
+## Analysis pipeline (one script: `analysis.R` = his steps 1-4 + our 5-10)
 
 | Step | What | Method |
 |---|---|---|
-| 1 | Preprocess + two classes | lemmatise; Bing lexicon positive/negative split |
+| 1 | Preprocess + two classes | lemmatise; AFINN lexicon positive/negative split |
 | 2 | Word frequency | top-10 words per class |
 | 3 | Word clouds | commonality + comparison (1- and 2-gram) |
 | 4 | Sentiment | NRC eight emotions, both classes |
@@ -160,7 +161,7 @@ reads its figures and tables, so run `analysis.R` first.
 | 9 | Themes + AI-role gradient | shared theme tagging on both sources |
 | 10 | Strategic recommendations | ordered design rules |
 
-**Headline results:** the Reddit sentiment classes agree with real Trustpilot stars **93.4% (κ = 0.76)**; four cross-source frustration drivers; AI is welcomed as the product but penalised as a rental add-on (**2.32★ vs 4.21★**). See [`outputs/report.pdf`](outputs/report.pdf).
+**Headline results:** the Reddit sentiment classes agree with real Trustpilot stars **92.8% (κ = 0.74)**; accuracy and trust drive negativity in both sources, while automation leans positive on Reddit (hosts/builders) but is the top negative marker on Trustpilot (end customers); AI is penalised as a rental add-on (**2.32★ vs 4.21★**). See [`outputs/report.pdf`](outputs/report.pdf).
 
 ---
 

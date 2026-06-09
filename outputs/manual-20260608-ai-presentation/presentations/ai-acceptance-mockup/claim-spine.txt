@@ -1,0 +1,23 @@
+Thesis:
+Users do not reject AI itself; they reject imposed, opaque, non-escalatable AI in high-trust service moments.
+
+Audience:
+Online Content Analysis class and instructor.
+
+One-line arc:
+Start from the assignment, show how the data and methods meet it, then turn converging text-mining evidence into AI-agent design rules.
+
+Slide list:
+1. AI acceptance depends on whether AI is chosen or imposed. Proof: headline metric rail.
+2. The project meets the brief, but uses comparison contexts to sharpen the sharing-economy case. Proof: assignment-fit map.
+3. Two corpora create two kinds of evidence: open discussion and rated transaction reviews. Proof: data map.
+4. The method stack covers the brief and triangulates weak labels against real stars. Proof: pipeline.
+5. Vocabulary splits around useful automation versus forced contact friction. Proof: top words.
+6. The emotional gap is fundamentally a trust gap. Proof: NRC emotion chart.
+7. The network shows the human-exit problem. Proof: word network.
+8. LDA turns thousands of comments into interpretable service failure themes. Proof: topic terms.
+9. GloVe independently rediscovers the human-versus-automation tension. Proof: neighbour table.
+10. Trustpilot validates the Reddit sentiment split well enough for directional inference. Proof: confusion matrix.
+11. AI is penalised when it acts as a rental add-on without control or escalation. Proof: role gradient and AI penalty.
+12. The design answer is transparent, escapable, and role-matched AI. Proof: recommendation stack and caveats.
+

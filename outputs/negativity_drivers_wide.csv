@@ -1,7 +1,7 @@
 "theme","theme_label","Reddit","Trustpilot","cross_validated"
-"automation_vs_human","Automation vs. human",1.07437220218501,8.0677863213274,TRUE
-"accuracy_quality","Accuracy & quality",1.67479766307552,6.57344938124348,TRUE
-"pricing_fees","Pricing & fees",0.683369512783406,5.30347807436931,FALSE
-"trust_safety","Trust & safety",0.868281263301268,4.9356554815199,FALSE
-"anthro_companion","Anthropomorphism",1.57545286690953,1.41938967267832,TRUE
-"support_resolution","Support & resolution",1.15830308197327,1.76362687708391,TRUE
+"automation_vs_human","Automation vs. human",0.941983048290785,8.0677863213274,FALSE
+"accuracy_quality","Accuracy & quality",1.97166488134476,6.57344938124348,TRUE
+"pricing_fees","Pricing & fees",0.903605614543115,5.30347807436931,FALSE
+"trust_safety","Trust & safety",1.01760587907495,4.9356554815199,TRUE
+"support_resolution","Support & resolution",0.60207244390617,1.76362687708391,FALSE
+"anthro_companion","Anthropomorphism",0.457741146318733,1.41938967267832,FALSE
