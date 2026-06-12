@@ -207,19 +207,32 @@ run_lda <- function(data, k = 4) {
   dtm <- data %>%
     count(doc_id, word) %>%
     cast_dtm(doc_id, word, n)
-  dtm <- removeSparseTerms(dtm, 0.99)         # drop ultra-rare terms
-  dtm <- dtm[slam::row_sums(dtm) > 0, ]       # drop now-empty comments
-  m <- LDA(dtm, k = k, method = "Gibbs",
-           control = list(burnin = 500, iter = 800, keep = 50, alpha = 0.5))
-  as.matrix(terms(m, 10))                      # top 10 words per topic
-}
+  dtm <- removeSparseTerms(dtm, 0.99)         
+  dtm <- dtm[slam::row_sums(dtm) > 0, ]       
+  LDA(dtm, k = k, method = "Gibbs",
+      control = list(burnin = 500, iter = 800, keep = 50, alpha = 0.5))
+}                                              
 
 # Run separately for each class so topics are class-specific.
 lda_positive <- run_lda(tokens_uni %>% filter(class == "positive"), k = 4)
 lda_negative <- run_lda(tokens_uni %>% filter(class == "negative"), k = 4)
 
-cat("\n--- LDA topics: POSITIVE class ---\n"); print(lda_positive)
-cat("\n--- LDA topics: NEGATIVE class ---\n"); print(lda_negative)
+cat("\n--- LDA topics: POSITIVE class ---\n"); print(terms(lda_positive, 10))
+cat("\n--- LDA topics: NEGATIVE class ---\n"); print(terms(lda_negative, 10))
+
+lda_negative %>%
+  tidy(matrix = "beta") %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 8) %>%
+  ungroup() %>%
+  ggplot(aes(reorder_within(term, beta, topic), beta, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~topic, scales = "free_y") +
+  scale_x_reordered() +
+  coord_flip() +
+  labs(title = "LDA topics (negative class)", x = NULL, y = "Word weight (beta)") +
+  theme_minimal()
+
 
 # LDA on bigrams (2-gram topics, required by the brief)
 # Same idea as above, but each "term" is a word pair instead of a single word.
@@ -239,6 +252,7 @@ lda_negative_bi <- run_lda_bigram(tokens_bi %>% filter(class == "negative"), k =
 
 cat("\n--- LDA bigram topics: POSITIVE class ---\n"); print(lda_positive_bi)
 cat("\n--- LDA bigram topics: NEGATIVE class ---\n"); print(lda_negative_bi)
+
 
 # GloVe embeddings (semantic neighbours of key terms)
 # Learn word vectors from the whole cleaned corpus, then find nearest words.
@@ -264,6 +278,40 @@ neighbours <- function(word, n = 10) {
 cat("\nNeighbours of 'trust':\n");  print(neighbours("trust"))
 cat("\nNeighbours of 'bot':\n");    print(neighbours("bot"))
 cat("\nNeighbours of 'host':\n");   print(neighbours("host"))
+
+# GloVe neighbour bar chart 
+# Shows the nearest words to a key term, by similarity score.
+plot_neighbours <- function(word, n = 10) {
+  nb <- neighbours(word, n)
+  data.frame(neighbour = names(nb), similarity = as.numeric(nb)) %>%
+    ggplot(aes(reorder(neighbour, similarity), similarity)) +
+    geom_col(fill = "steelblue") +
+    coord_flip() +
+    labs(title = paste0("Words most similar to '", word, "'"),
+         x = NULL, y = "Cosine similarity") +
+    theme_minimal()
+}
+
+plot_neighbours("bot")
+plot_neighbours("trust")
+plot_neighbours("host")
+
+# GloVe 2D word map (PCA)
+# Project the 50-number vectors down to 2D so similar words sit close together.
+key_words <- c("bot","human","host","guest","trust","support","automate",
+               "review","customer","contact","turo","airbnb")
+key_words <- key_words[key_words %in% rownames(word_vectors)]
+
+coords <- prcomp(word_vectors[key_words, ])$x[, 1:2] %>%
+  as.data.frame()
+coords$word <- rownames(coords)
+
+ggplot(coords, aes(PC1, PC2, label = word)) +
+  geom_point(color = "steelblue", size = 3) +
+  geom_text(vjust = -0.8, size = 4) +
+  labs(title = "GloVe word map (key terms)", x = "Dimension 1", y = "Dimension 2") +
+  theme_minimal()
+
 
 # 5. Save figures and tables, then add the Trustpilot comparison
 suppressWarnings(suppressMessages({ library(scales); library(RColorBrewer); library(ggraph) }))
@@ -315,10 +363,34 @@ ggsave("figures/fig_06_network.png",
   width = 9, height = 6.5, dpi = 150)
 
 # LDA topic terms -> CSV
-write.csv(as.data.frame(lda_negative),    "outputs/lda_negative_unigram.csv", row.names = FALSE)
-write.csv(as.data.frame(lda_positive),    "outputs/lda_positive_unigram.csv", row.names = FALSE)
+write.csv(as.data.frame(as.matrix(terms(lda_negative, 10))), "outputs/lda_negative_unigram.csv", row.names = FALSE)
+write.csv(as.data.frame(as.matrix(terms(lda_positive, 10))), "outputs/lda_positive_unigram.csv", row.names = FALSE)
 write.csv(as.data.frame(lda_negative_bi), "outputs/lda_negative_bigram.csv",  row.names = FALSE)
 write.csv(as.data.frame(lda_positive_bi), "outputs/lda_positive_bigram.csv",  row.names = FALSE)
+
+# LDA beta chart and GloVe word map as report figures.
+ggsave("figures/fig_07_lda_negative.png",
+  lda_negative %>%
+    tidy(matrix = "beta") %>%
+    group_by(topic) %>%
+    slice_max(beta, n = 8) %>%
+    ungroup() %>%
+    ggplot(aes(reorder_within(term, beta, topic), beta, fill = factor(topic))) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~topic, scales = "free_y") +
+    scale_x_reordered() +
+    coord_flip() +
+    labs(title = "LDA topics (negative class)", x = NULL, y = "Word weight (beta)") +
+    theme_minimal(),
+  width = 9, height = 6, dpi = 150)
+
+ggsave("figures/fig_13_glove_word_map.png",
+  ggplot(coords, aes(PC1, PC2, label = word)) +
+    geom_point(color = "steelblue", size = 3) +
+    geom_text(vjust = -0.8, size = 4) +
+    labs(title = "GloVe word map (key terms)", x = "Dimension 1", y = "Dimension 2") +
+    theme_minimal(),
+  width = 7.5, height = 5.5, dpi = 150)
 
 # GloVe neighbours -> CSV
 keys <- c("trust", "bot", "human", "host", "automate")
@@ -438,6 +510,37 @@ ggsave("figures/fig_10_drivers.png",
 reddit_grad <- reddit2 %>% group_by(platform_category) %>%
   summarise(n = n(), pct_positive = mean(class == "positive"), .groups = "drop")
 write.csv(reddit_grad, "outputs/role_gradient.csv", row.names = FALSE)
+
+# Robustness check: the keyword scrape also returns general platform talk
+# (mainly via the broad 'app' query), so re-measure the gradient using only
+# comments that explicitly mention AI, automation, bots or a named AI product.
+ai_terms <- paste0(
+  "(?i)\\bai\\b|artificial intelligence|automat|\\bbots?\\b|chatbot|chat bot|",
+  "algorithm|machine learning|gpt|\\bllms?\\b|language model|",
+  "chatgpt|claude|gemini|\\bbard\\b|replika|copilot|perplexity|character\\.?ai|openai|anthropic")
+reddit_grad_ai <- reddit2 %>%
+  filter(str_detect(body, ai_terms)) %>%
+  group_by(platform_category) %>%
+  summarise(n = n(), pct_positive = mean(class == "positive"), .groups = "drop")
+write.csv(reddit_grad_ai, "outputs/role_gradient_ai_only.csv", row.names = FALSE)
+cat(sprintf("Role gradient (explicit AI mentions only): %s\n",
+            paste(sprintf("%s %.1f%% (n=%d)", reddit_grad_ai$platform_category,
+                          100 * reddit_grad_ai$pct_positive, reddit_grad_ai$n), collapse = " | ")))
+
+ggsave("figures/fig_12_role_gradient_ai_only.png",
+  reddit_grad_ai %>%
+    mutate(label = recode(platform_category, ai_service = "AI-native",
+                          rental = "Rental", customer_service = "Customer service"),
+           label = paste0(label, "\n(n = ", n, ")"),
+           label = reorder(label, -pct_positive)) %>%
+    ggplot(aes(label, 100 * pct_positive)) +
+    geom_col(width = 0.6, fill = "#2c7fb8") +
+    geom_text(aes(label = sprintf("%.1f%%", 100 * pct_positive)), vjust = -0.4, size = 4.5) +
+    ylim(0, 75) +
+    labs(title = "Positive acceptance by AI role",
+         subtitle = "Reddit comments that explicitly mention AI or automation only",
+         x = NULL, y = "Positive share (%)") + theme_minimal(),
+  width = 6.5, height = 4.4, dpi = 150)
 
 penalty <- tp %>% filter(!is.na(ai_related)) %>% group_by(ai_related) %>%
   summarise(n = n(), mean_rating = mean(rating), .groups = "drop")

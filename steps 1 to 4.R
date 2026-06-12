@@ -8,7 +8,7 @@
 # Two classes  = positive vs negative (from AFINN sentiment score)
 # Second lens  = platform_category (ai_service / rental / customer_service)
 # Data         = data/reddit_baseline.csv  (text in `body`)
-
+set.seed(1)
 
 #Run packages
 library(dplyr)
@@ -205,19 +205,32 @@ run_lda <- function(data, k = 4) {
   dtm <- data %>%
     count(doc_id, word) %>%
     cast_dtm(doc_id, word, n)
-  dtm <- removeSparseTerms(dtm, 0.99)         # drop ultra-rare terms
-  dtm <- dtm[slam::row_sums(dtm) > 0, ]       # drop now-empty comments
-  m <- LDA(dtm, k = k, method = "Gibbs",
-           control = list(burnin = 500, iter = 800, keep = 50, alpha = 0.5))
-  as.matrix(terms(m, 10))                      # top 10 words per topic
-}
+  dtm <- removeSparseTerms(dtm, 0.99)         
+  dtm <- dtm[slam::row_sums(dtm) > 0, ]       
+  LDA(dtm, k = k, method = "Gibbs",
+      control = list(burnin = 500, iter = 800, keep = 50, alpha = 0.5))
+}                                              
 
 # Run separately for each class so topics are class-specific.
 lda_positive <- run_lda(tokens_uni %>% filter(class == "positive"), k = 4)
 lda_negative <- run_lda(tokens_uni %>% filter(class == "negative"), k = 4)
 
-cat("\n--- LDA topics: POSITIVE class ---\n"); print(lda_positive)
-cat("\n--- LDA topics: NEGATIVE class ---\n"); print(lda_negative)
+cat("\n--- LDA topics: POSITIVE class ---\n"); print(terms(lda_positive, 10))
+cat("\n--- LDA topics: NEGATIVE class ---\n"); print(terms(lda_negative, 10))
+
+lda_negative %>%
+  tidy(matrix = "beta") %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 8) %>%
+  ungroup() %>%
+  ggplot(aes(reorder_within(term, beta, topic), beta, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~topic, scales = "free_y") +
+  scale_x_reordered() +
+  coord_flip() +
+  labs(title = "LDA topics (negative class)", x = NULL, y = "Word weight (beta)") +
+  theme_minimal()
+
 
 # LDA on bigrams (2-gram topics, required by the brief)
 # Same idea as above, but each "term" is a word pair instead of a single word.
@@ -237,6 +250,7 @@ lda_negative_bi <- run_lda_bigram(tokens_bi %>% filter(class == "negative"), k =
 
 cat("\n--- LDA bigram topics: POSITIVE class ---\n"); print(lda_positive_bi)
 cat("\n--- LDA bigram topics: NEGATIVE class ---\n"); print(lda_negative_bi)
+
 
 # GloVe embeddings (semantic neighbours of key terms)
 # Learn word vectors from the whole cleaned corpus, then find nearest words.
@@ -262,3 +276,37 @@ neighbours <- function(word, n = 10) {
 cat("\nNeighbours of 'trust':\n");  print(neighbours("trust"))
 cat("\nNeighbours of 'bot':\n");    print(neighbours("bot"))
 cat("\nNeighbours of 'host':\n");   print(neighbours("host"))
+
+# GloVe neighbour bar chart 
+# Shows the nearest words to a key term, by similarity score.
+plot_neighbours <- function(word, n = 10) {
+  nb <- neighbours(word, n)
+  data.frame(neighbour = names(nb), similarity = as.numeric(nb)) %>%
+    ggplot(aes(reorder(neighbour, similarity), similarity)) +
+    geom_col(fill = "steelblue") +
+    coord_flip() +
+    labs(title = paste0("Words most similar to '", word, "'"),
+         x = NULL, y = "Cosine similarity") +
+    theme_minimal()
+}
+
+plot_neighbours("bot")
+plot_neighbours("trust")
+plot_neighbours("host")
+
+# GloVe 2D word map (PCA)
+# Project the 50-number vectors down to 2D so similar words sit close together.
+key_words <- c("bot","human","host","guest","trust","support","automate",
+               "review","customer","contact","turo","airbnb")
+key_words <- key_words[key_words %in% rownames(word_vectors)]
+
+coords <- prcomp(word_vectors[key_words, ])$x[, 1:2] %>%
+  as.data.frame()
+coords$word <- rownames(coords)
+
+ggplot(coords, aes(PC1, PC2, label = word)) +
+  geom_point(color = "steelblue", size = 3) +
+  geom_text(vjust = -0.8, size = 4) +
+  labs(title = "GloVe word map (key terms)", x = "Dimension 1", y = "Dimension 2") +
+  theme_minimal()
+
